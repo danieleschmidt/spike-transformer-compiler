@@ -1,0 +1,75 @@
+# SLSA (Supply-chain Levels for Software Artifacts) Configuration
+# Reference: https://slsa.dev/
+
+slsa_level: 2
+
+build_requirements:
+  # SLSA Level 1 Requirements
+  - scripted_build: true
+  - build_as_code: true
+  
+  # SLSA Level 2 Requirements  
+  - version_controlled: true
+  - authenticated_builds: true
+  - build_isolation: true
+  
+provenance:
+  enabled: true
+  format: "in-toto"
+  storage: "github_attestations"
+  
+  # Required provenance fields
+  fields:
+    - build_definition
+    - run_details
+    - build_metadata
+    - materials
+
+attestation:
+  subjects:
+    - name: "spike-transformer-compiler"
+      digest: "sha256"
+      
+  predicates:
+    - type: "https://slsa.dev/provenance/v0.2"
+    - type: "https://spdx.dev/spdxdocs/spdx-v2.3"
+
+security_controls:
+  # Source integrity
+  source_verification:
+    - signed_commits: recommended
+    - branch_protection: required
+    - two_person_review: required
+    
+  # Build integrity
+  build_verification:
+    - hermetic_builds: true
+    - reproducible_builds: true
+    - isolated_build_environment: true
+    
+  # Artifact integrity
+  artifact_verification:
+    - signed_artifacts: true
+    - immutable_storage: true
+    - audit_trail: true
+
+vulnerability_management:
+  dependency_scanning:
+    - tools: ["safety", "pip-audit", "bandit"]
+    - frequency: "on_commit"
+    - severity_threshold: "medium"
+    
+  container_scanning:
+    - base_image_scanning: true
+    - runtime_scanning: false
+    - tools: ["trivy", "grype"]
+
+compliance_reporting:
+  output_format: "json"
+  output_path: ".security/reports/slsa-compliance.json"
+  
+  metrics:
+    - build_reproducibility_rate
+    - vulnerability_detection_time
+    - patch_deployment_time
+    - attestation_coverage
