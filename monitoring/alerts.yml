@@ -1,0 +1,60 @@
+groups:
+  - name: spike-compiler-alerts
+    rules:
+      # Compilation performance alerts
+      - alert: HighCompilationTime
+        expr: compilation_time_seconds > 60
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Compilation taking longer than expected"
+          description: "Compilation time has exceeded 60 seconds for {{ $labels.model_name }}"
+
+      - alert: CompilationFailureRate
+        expr: rate(compilation_failures_total[5m]) > 0.1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High compilation failure rate"
+          description: "Compilation failure rate is {{ $value }} failures per second"
+
+      # Memory usage alerts  
+      - alert: HighMemoryUsage
+        expr: memory_usage_bytes / (1024*1024*1024) > 4
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage during compilation"
+          description: "Memory usage is {{ $value }}GB during compilation"
+
+      # Energy efficiency alerts
+      - alert: EnergyEfficiencyDegraded
+        expr: energy_per_inference_mj > 5.0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Energy efficiency below target"
+          description: "Energy consumption is {{ $value }}mJ per inference, above 5.0mJ target"
+
+      # Neuromorphic hardware alerts
+      - alert: LoihiChipUtilization
+        expr: loihi_chip_utilization_percent > 90
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Loihi chip utilization"
+          description: "Loihi chip utilization is {{ $value }}%, approaching capacity"
+
+      - alert: SpikeRateAnomaly
+        expr: abs(spike_rate_hz - spike_rate_hz offset 1h) > (0.3 * spike_rate_hz offset 1h)
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Abnormal spike rate detected"
+          description: "Spike rate has changed by {{ $value }}Hz from baseline"

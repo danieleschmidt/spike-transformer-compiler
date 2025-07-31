@@ -1,0 +1,95 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Spike-Transformer-Compiler Dashboard",
+    "tags": ["neuromorphic", "compiler", "performance"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Compilation Performance",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "compilation_time_seconds",
+            "legendFormat": "Compilation Time"
+          },
+          {
+            "expr": "rate(compilation_requests_total[5m])",
+            "legendFormat": "Compilation Rate"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Memory Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "memory_usage_bytes / (1024*1024)",
+            "legendFormat": "Memory Usage (MB)"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Energy Efficiency",
+        "type": "singlestat",
+        "targets": [
+          {
+            "expr": "energy_per_inference_mj",
+            "legendFormat": "Energy per Inference (mJ)"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "Loihi Chip Utilization",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "loihi_chip_utilization_percent",
+            "legendFormat": "Utilization %"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 8}
+      },
+      {
+        "id": 5,
+        "title": "Spike Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "spike_rate_hz",
+            "legendFormat": "Spike Rate (Hz)"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "id": 6,
+        "title": "Model Accuracy vs Energy",
+        "type": "scatter",
+        "targets": [
+          {
+            "expr": "accuracy_percent",
+            "legendFormat": "Accuracy"
+          },
+          {
+            "expr": "energy_per_inference_mj", 
+            "legendFormat": "Energy"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 12}
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "5s"
+  }
+}

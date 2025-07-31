@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  # Development environment
+  spike-compiler-dev:
+    build:
+      context: .
+      target: development
+    volumes:
+      - .:/app
+      - pip-cache:/root/.cache/pip
+    environment:
+      - PYTHONPATH=/app/src
+    ports:
+      - "8000:8000"  # For documentation server
+    command: bash
+    stdin_open: true
+    tty: true
+
+  # Production environment
+  spike-compiler:
+    build:
+      context: .
+      target: production
+    environment:
+      - PYTHONPATH=/home/compiler/app/src
+    command: ["spike-compile", "--help"]
+
+  # Testing environment
+  spike-compiler-test:
+    build:
+      context: .
+      target: development
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app/src
+    command: ["pytest", "--cov=spike_transformer_compiler"]
+
+  # Documentation server
+  docs:
+    build:
+      context: .
+      target: development
+    volumes:
+      - .:/app
+      - docs-build:/app/docs/_build
+    ports:
+      - "8080:8000"
+    working_dir: /app/docs/_build/html
+    command: ["python", "-m", "http.server", "8000", "--bind", "0.0.0.0"]
+    depends_on:
+      - spike-compiler-dev
+
+  # Jupyter notebook for experimentation
+  jupyter:
+    build:
+      context: .
+      target: development
+    volumes:
+      - .:/app
+      - jupyter-data:/home/jovyan/work
+    ports:
+      - "8888:8888"
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+    command: >
+      bash -c "pip install jupyter jupyterlab &&
+               jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root"
+
+  # Monitoring stack (for operational observability)
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+
+volumes:
+  pip-cache:
+  docs-build:
+  jupyter-data:
+  prometheus-data:
+  grafana-data:

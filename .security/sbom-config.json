@@ -1,0 +1,34 @@
+{
+  "version": "1.0",
+  "sbom_generation": {
+    "format": "spdx",
+    "version": "2.3",
+    "output_file": "sbom.spdx.json",
+    "include_dev_dependencies": false,
+    "namespace": "https://github.com/danieleschmidt/spike-transformer-compiler"
+  },
+  "scan_config": {
+    "include_paths": [
+      "src/",
+      "pyproject.toml",
+      "requirements.txt"
+    ],
+    "exclude_paths": [
+      "tests/",
+      "docs/",
+      ".git/"
+    ]
+  },
+  "vulnerability_scanning": {
+    "enabled": true,
+    "severity_threshold": "medium",
+    "ignore_files": [".security/vulnerability-ignore.json"]
+  },
+  "compliance": {
+    "frameworks": ["SLSA", "NIST-SSDF"],
+    "reporting": {
+      "format": "json",
+      "output_directory": ".security/reports/"
+    }
+  }
+}
