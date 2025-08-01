@@ -1,0 +1,511 @@
+[
+  {
+    "id": "implementation_001",
+    "title": "TODO found in code: , FIXME, HACK, etc. in code...",
+    "description": "Found in /root/repo/.terragon/signal-harvester.py:99\n# Scan for TODO, FIXME, HACK, etc. in code",
+    "category": "implementation",
+    "source": "git_history",
+    "file_path": "/root/repo/.terragon/signal-harvester.py",
+    "line_number": 99,
+    "estimated_effort": 4.0,
+    "business_impact": 8,
+    "technical_debt_score": 85,
+    "urgency": 7,
+    "confidence": 0.8,
+    "keywords": [
+      "implementation",
+      "code_comment"
+    ],
+    "discovered_at": "2025-08-01T00:47:50.441094",
+    "last_updated": "2025-08-01T00:47:50.441135"
+  },
+  {
+    "id": "technical_debt_002",
+    "title": "FIXME found in code: , HACK, etc. in code...",
+    "description": "Found in /root/repo/.terragon/signal-harvester.py:99\n# Scan for TODO, FIXME, HACK, etc. in code",
+    "category": "technical_debt",
+    "source": "git_history",
+    "file_path": "/root/repo/.terragon/signal-harvester.py",
+    "line_number": 99,
+    "estimated_effort": 2.5,
+    "business_impact": 5,
+    "technical_debt_score": 80,
+    "urgency": 4,
+    "confidence": 0.8,
+    "keywords": [
+      "technical_debt",
+      "code_comment"
+    ],
+    "discovered_at": "2025-08-01T00:47:50.441173",
+    "last_updated": "2025-08-01T00:47:50.441175"
+  },
+  {
+    "id": "technical_debt_003",
+    "title": "Code hack identified: , etc. in code...",
+    "description": "Found in /root/repo/.terragon/signal-harvester.py:99\n# Scan for TODO, FIXME, HACK, etc. in code",
+    "category": "technical_debt",
+    "source": "git_history",
+    "file_path": "/root/repo/.terragon/signal-harvester.py",
+    "line_number": 99,
+    "estimated_effort": 2.5,
+    "business_impact": 5,
+    "technical_debt_score": 80,
+    "urgency": 4,
+    "confidence": 0.8,
+    "keywords": [
+      "technical_debt",
+      "code_comment"
+    ],
+    "discovered_at": "2025-08-01T00:47:50.441194",
+    "last_updated": "2025-08-01T00:47:50.441196"
+  },
+  {
+    "id": "implementation_004",
+    "title": "TODO found in code: ?\\s*(.+)', 'implementation', 'TODO found in code'),...",
+    "description": "Found in /root/repo/.terragon/signal-harvester.py:101\n(r'TODO:?\\s*(.+)', 'implementation', 'TODO found in code'),",
+    "category": "implementation",
+    "source": "git_history",
+    "file_path": "/root/repo/.terragon/signal-harvester.py",
+    "line_number": 101,
+    "estimated_effort": 4.0,
+    "business_impact": 8,
+    "technical_debt_score": 85,
+    "urgency": 7,
+    "confidence": 0.8,
+    "keywords": [
+      "implementation",
+      "code_comment"
+    ],
+    "discovered_at": "2025-08-01T00:47:50.441221",
+    "last_updated": "2025-08-01T00:47:50.441223"
+  },
+  {
+    "id": "technical_debt_005",
+    "title": "FIXME found in code: ?\\s*(.+)', 'technical_debt', 'FIXME found in code'),...",
+    "description": "Found in /root/repo/.terragon/signal-harvester.py:102\n(r'FIXME:?\\s*(.+)', 'technical_debt', 'FIXME found in code'),",
+    "category": "technical_debt",
+    "source": "git_history",
+    "file_path": "/root/repo/.terragon/signal-harvester.py",
+    "line_number": 102,
+    "estimated_effort": 2.5,
+    "business_impact": 5,
+    "technical_debt_score": 80,
+    "urgency": 4,
+    "confidence": 0.8,
+    "keywords": [
+      "technical_debt",
+      "code_comment"
+    ],
+    "discovered_at": "2025-08-01T00:47:50.441245",
+    "last_updated": "2025-08-01T00:47:50.441247"
+  },
+  {
+    "id": "technical_debt_006",
+    "title": "Code hack identified: ?\\s*(.+)', 'technical_debt', 'Code hack identified'),...",
+    "description": "Found in /root/repo/.terragon/signal-harvester.py:103\n(r'HACK:?\\s*(.+)', 'technical_debt', 'Code hack identified'),",
+    "category": "technical_debt",
+    "source": "git_history",
+    "file_path": "/root/repo/.terragon/signal-harvester.py",
+    "line_number": 103,
+    "estimated_effort": 2.5,
+    "business_impact": 5,
+    "technical_debt_score": 80,
+    "urgency": 4,
+    "confidence": 0.8,
+    "keywords": [
+      "technical_debt",
+      "code_comment"
+    ],
+    "discovered_at": "2025-08-01T00:47:50.441268",
+    "last_updated": "2025-08-01T00:47:50.441269"
+  },
+  {
+    "id": "technical_debt_007",
+    "title": "Code issue marked: ?\\s*(.+)', 'technical_debt', 'Code issue marked'),...",
+    "description": "Found in /root/repo/.terragon/signal-harvester.py:104\n(r'XXX:?\\s*(.+)', 'technical_debt', 'Code issue marked'),",
+    "category": "technical_debt",
+    "source": "git_history",
+    "file_path": "/root/repo/.terragon/signal-harvester.py",
+    "line_number": 104,
+    "estimated_effort": 2.5,
+    "business_impact": 5,
+    "technical_debt_score": 80,
+    "urgency": 4,
+    "confidence": 0.8,
+    "keywords": [
+      "technical_debt",
+      "code_comment"
+    ],
+    "discovered_at": "2025-08-01T00:47:50.441290",
+    "last_updated": "2025-08-01T00:47:50.441291"
+  },
+  {
+    "id": "implementation_008",
+    "title": "Missing implementation: (r'raise NotImplementedError', 'implementation', 'Missing im...",
+    "description": "Found in /root/repo/.terragon/signal-harvester.py:106\n(r'raise NotImplementedError', 'implementation', 'Missing implementation'),",
+    "category": "implementation",
+    "source": "git_history",
+    "file_path": "/root/repo/.terragon/signal-harvester.py",
+    "line_number": 106,
+    "estimated_effort": 4.0,
+    "business_impact": 8,
+    "technical_debt_score": 85,
+    "urgency": 7,
+    "confidence": 0.8,
+    "keywords": [
+      "implementation",
+      "code_comment"
+    ],
+    "discovered_at": "2025-08-01T00:47:50.441325",
+    "last_updated": "2025-08-01T00:47:50.441327"
+  },
+  {
+    "id": "implementation_009",
+    "title": "Not implemented feature: Compiler implementation pending...",
+    "description": "Found in /root/repo/src/spike_transformer_compiler/compiler.py:60\nraise NotImplementedError(\"Compiler implementation pending\")",
+    "category": "implementation",
+    "source": "git_history",
+    "file_path": "/root/repo/src/spike_transformer_compiler/compiler.py",
+    "line_number": 60,
+    "estimated_effort": 4.0,
+    "business_impact": 8,
+    "technical_debt_score": 85,
+    "urgency": 7,
+    "confidence": 0.8,
+    "keywords": [
+      "implementation",
+      "code_comment"
+    ],
+    "discovered_at": "2025-08-01T00:47:50.462096",
+    "last_updated": "2025-08-01T00:47:50.462133"
+  },
+  {
+    "id": "implementation_010",
+    "title": "Missing implementation: raise NotImplementedError(\"Compiler implementation pending\")...",
+    "description": "Found in /root/repo/src/spike_transformer_compiler/compiler.py:60\nraise NotImplementedError(\"Compiler implementation pending\")",
+    "category": "implementation",
+    "source": "git_history",
+    "file_path": "/root/repo/src/spike_transformer_compiler/compiler.py",
+    "line_number": 60,
+    "estimated_effort": 4.0,
+    "business_impact": 8,
+    "technical_debt_score": 85,
+    "urgency": 7,
+    "confidence": 0.8,
+    "keywords": [
+      "implementation",
+      "code_comment"
+    ],
+    "discovered_at": "2025-08-01T00:47:50.462162",
+    "last_updated": "2025-08-01T00:47:50.462164"
+  },
+  {
+    "id": "implementation_011",
+    "title": "Not implemented feature: Optimizer creation pending...",
+    "description": "Found in /root/repo/src/spike_transformer_compiler/compiler.py:64\nraise NotImplementedError(\"Optimizer creation pending\")",
+    "category": "implementation",
+    "source": "git_history",
+    "file_path": "/root/repo/src/spike_transformer_compiler/compiler.py",
+    "line_number": 64,
+    "estimated_effort": 4.0,
+    "business_impact": 8,
+    "technical_debt_score": 85,
+    "urgency": 7,
+    "confidence": 0.8,
+    "keywords": [
+      "implementation",
+      "code_comment"
+    ],
+    "discovered_at": "2025-08-01T00:47:50.462206",
+    "last_updated": "2025-08-01T00:47:50.462207"
+  },
+  {
+    "id": "implementation_012",
+    "title": "Missing implementation: raise NotImplementedError(\"Optimizer creation pending\")...",
+    "description": "Found in /root/repo/src/spike_transformer_compiler/compiler.py:64\nraise NotImplementedError(\"Optimizer creation pending\")",
+    "category": "implementation",
+    "source": "git_history",
+    "file_path": "/root/repo/src/spike_transformer_compiler/compiler.py",
+    "line_number": 64,
+    "estimated_effort": 4.0,
+    "business_impact": 8,
+    "technical_debt_score": 85,
+    "urgency": 7,
+    "confidence": 0.8,
+    "keywords": [
+      "implementation",
+      "code_comment"
+    ],
+    "discovered_at": "2025-08-01T00:47:50.462221",
+    "last_updated": "2025-08-01T00:47:50.462223"
+  },
+  {
+    "id": "implementation_013",
+    "title": "Not implemented feature: Model execution pending...",
+    "description": "Found in /root/repo/src/spike_transformer_compiler/compiler.py:81\nraise NotImplementedError(\"Model execution pending\")",
+    "category": "implementation",
+    "source": "git_history",
+    "file_path": "/root/repo/src/spike_transformer_compiler/compiler.py",
+    "line_number": 81,
+    "estimated_effort": 4.0,
+    "business_impact": 8,
+    "technical_debt_score": 85,
+    "urgency": 7,
+    "confidence": 0.8,
+    "keywords": [
+      "implementation",
+      "code_comment"
+    ],
+    "discovered_at": "2025-08-01T00:47:50.462336",
+    "last_updated": "2025-08-01T00:47:50.462337"
+  },
+  {
+    "id": "implementation_014",
+    "title": "Missing implementation: raise NotImplementedError(\"Model execution pending\")...",
+    "description": "Found in /root/repo/src/spike_transformer_compiler/compiler.py:81\nraise NotImplementedError(\"Model execution pending\")",
+    "category": "implementation",
+    "source": "git_history",
+    "file_path": "/root/repo/src/spike_transformer_compiler/compiler.py",
+    "line_number": 81,
+    "estimated_effort": 4.0,
+    "business_impact": 8,
+    "technical_debt_score": 85,
+    "urgency": 7,
+    "confidence": 0.8,
+    "keywords": [
+      "implementation",
+      "code_comment"
+    ],
+    "discovered_at": "2025-08-01T00:47:50.462349",
+    "last_updated": "2025-08-01T00:47:50.462351"
+  },
+  {
+    "id": "implementation_015",
+    "title": "Not implemented feature: Debug trace pending...",
+    "description": "Found in /root/repo/src/spike_transformer_compiler/compiler.py:85\nraise NotImplementedError(\"Debug trace pending\")",
+    "category": "implementation",
+    "source": "git_history",
+    "file_path": "/root/repo/src/spike_transformer_compiler/compiler.py",
+    "line_number": 85,
+    "estimated_effort": 4.0,
+    "business_impact": 8,
+    "technical_debt_score": 85,
+    "urgency": 7,
+    "confidence": 0.8,
+    "keywords": [
+      "implementation",
+      "code_comment"
+    ],
+    "discovered_at": "2025-08-01T00:47:50.462385",
+    "last_updated": "2025-08-01T00:47:50.462387"
+  },
+  {
+    "id": "implementation_016",
+    "title": "Missing implementation: raise NotImplementedError(\"Debug trace pending\")...",
+    "description": "Found in /root/repo/src/spike_transformer_compiler/compiler.py:85\nraise NotImplementedError(\"Debug trace pending\")",
+    "category": "implementation",
+    "source": "git_history",
+    "file_path": "/root/repo/src/spike_transformer_compiler/compiler.py",
+    "line_number": 85,
+    "estimated_effort": 4.0,
+    "business_impact": 8,
+    "technical_debt_score": 85,
+    "urgency": 7,
+    "confidence": 0.8,
+    "keywords": [
+      "implementation",
+      "code_comment"
+    ],
+    "discovered_at": "2025-08-01T00:47:50.462399",
+    "last_updated": "2025-08-01T00:47:50.462400"
+  },
+  {
+    "id": "implementation_017",
+    "title": "Missing implementation: # This will raise NotImplementedError but we measure the ove...",
+    "description": "Found in /root/repo/tests/performance/test_compilation_performance.py:19\n# This will raise NotImplementedError but we measure the overhead",
+    "category": "implementation",
+    "source": "git_history",
+    "file_path": "/root/repo/tests/performance/test_compilation_performance.py",
+    "line_number": 19,
+    "estimated_effort": 4.0,
+    "business_impact": 8,
+    "technical_debt_score": 85,
+    "urgency": 7,
+    "confidence": 0.8,
+    "keywords": [
+      "implementation",
+      "code_comment"
+    ],
+    "discovered_at": "2025-08-01T00:47:50.464637",
+    "last_updated": "2025-08-01T00:47:50.464643"
+  },
+  {
+    "id": "security_018",
+    "title": "Outdated dependencies (15 packages)",
+    "description": "Outdated packages: ['blinker', 'cryptography', 'dbus-python', 'httplib2', 'launchpadlib']",
+    "category": "security",
+    "source": "static_analysis",
+    "file_path": null,
+    "line_number": null,
+    "estimated_effort": 2.0,
+    "business_impact": 9,
+    "technical_debt_score": 15,
+    "urgency": 9,
+    "confidence": 0.8,
+    "keywords": [
+      "dependencies",
+      "outdated",
+      "security"
+    ],
+    "discovered_at": "2025-08-01T00:47:52.779568",
+    "last_updated": "2025-08-01T00:47:52.779582"
+  },
+  {
+    "id": "automation_019",
+    "title": "Missing GitHub Actions CI/CD workflows",
+    "description": "No CI/CD automation found. This is critical for MATURING maturity level.",
+    "category": "automation",
+    "source": "github",
+    "file_path": null,
+    "line_number": null,
+    "estimated_effort": 3.0,
+    "business_impact": 7,
+    "technical_debt_score": 72,
+    "urgency": 8,
+    "confidence": 0.8,
+    "keywords": [
+      "ci",
+      "cd",
+      "automation",
+      "critical"
+    ],
+    "discovered_at": "2025-08-01T00:47:52.885748",
+    "last_updated": "2025-08-01T00:47:52.885760"
+  },
+  {
+    "id": "implementation_020",
+    "title": "Core implementation missing in compiler.py",
+    "description": "Found 4 NotImplementedError instances",
+    "category": "implementation",
+    "source": "implementation_analysis",
+    "file_path": "src/spike_transformer_compiler/compiler.py",
+    "line_number": null,
+    "estimated_effort": 4.0,
+    "business_impact": 8,
+    "technical_debt_score": 100,
+    "urgency": 9,
+    "confidence": 0.8,
+    "keywords": [
+      "core",
+      "implementation",
+      "critical"
+    ],
+    "discovered_at": "2025-08-01T00:47:52.885869",
+    "last_updated": "2025-08-01T00:47:52.885872"
+  },
+  {
+    "id": "automation_021",
+    "title": "Missing automated dependency updates",
+    "description": "MATURING repositories should have automated dependency updates",
+    "category": "automation",
+    "source": "maturity_analysis",
+    "file_path": null,
+    "line_number": null,
+    "estimated_effort": 3.0,
+    "business_impact": 7,
+    "technical_debt_score": 60,
+    "urgency": 6,
+    "confidence": 0.8,
+    "keywords": [
+      "advanced",
+      "maturing",
+      "automation"
+    ],
+    "discovered_at": "2025-08-01T00:47:52.886018",
+    "last_updated": "2025-08-01T00:47:52.886020"
+  },
+  {
+    "id": "testing_022",
+    "title": "Missing testing environment configuration",
+    "description": "MATURING repositories should have testing environment configuration",
+    "category": "testing",
+    "source": "maturity_analysis",
+    "file_path": null,
+    "line_number": null,
+    "estimated_effort": 2.0,
+    "business_impact": 5,
+    "technical_debt_score": 50,
+    "urgency": 5,
+    "confidence": 0.8,
+    "keywords": [
+      "advanced",
+      "maturing",
+      "testing"
+    ],
+    "discovered_at": "2025-08-01T00:47:52.886070",
+    "last_updated": "2025-08-01T00:47:52.886072"
+  },
+  {
+    "id": "performance_023",
+    "title": "Missing performance benchmarking",
+    "description": "MATURING repositories should have performance benchmarking",
+    "category": "performance",
+    "source": "maturity_analysis",
+    "file_path": null,
+    "line_number": null,
+    "estimated_effort": 3.5,
+    "business_impact": 6,
+    "technical_debt_score": 45,
+    "urgency": 5,
+    "confidence": 0.8,
+    "keywords": [
+      "advanced",
+      "maturing",
+      "performance"
+    ],
+    "discovered_at": "2025-08-01T00:47:52.886104",
+    "last_updated": "2025-08-01T00:47:52.886106"
+  },
+  {
+    "id": "testing_024",
+    "title": "Missing code coverage configuration",
+    "description": "MATURING repositories should have code coverage configuration",
+    "category": "testing",
+    "source": "maturity_analysis",
+    "file_path": null,
+    "line_number": null,
+    "estimated_effort": 2.0,
+    "business_impact": 5,
+    "technical_debt_score": 50,
+    "urgency": 5,
+    "confidence": 0.8,
+    "keywords": [
+      "advanced",
+      "maturing",
+      "testing"
+    ],
+    "discovered_at": "2025-08-01T00:47:52.886180",
+    "last_updated": "2025-08-01T00:47:52.886183"
+  },
+  {
+    "id": "documentation_025",
+    "title": "Missing api documentation",
+    "description": "MATURING repositories should have api documentation",
+    "category": "documentation",
+    "source": "maturity_analysis",
+    "file_path": null,
+    "line_number": null,
+    "estimated_effort": 1.5,
+    "business_impact": 4,
+    "technical_debt_score": 25,
+    "urgency": 3,
+    "confidence": 0.8,
+    "keywords": [
+      "advanced",
+      "maturing",
+      "documentation"
+    ],
+    "discovered_at": "2025-08-01T00:47:52.886217",
+    "last_updated": "2025-08-01T00:47:52.886219"
+  }
+]
