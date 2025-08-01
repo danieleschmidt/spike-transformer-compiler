@@ -1,0 +1,302 @@
+# 📊 Terragon Autonomous Value Discovery Configuration
+# Spike-Transformer-Compiler Repository
+
+# Repository-specific configuration for MATURING level project
+repository:
+  name: "spike-transformer-compiler"
+  maturity_level: "maturing"  # nascent, developing, maturing, advanced
+  domain: "neuromorphic-computing"
+  primary_language: "python"
+  architecture_type: "compiler-toolchain"
+
+# Adaptive scoring weights based on maturity level
+scoring:
+  weights:
+    maturing:  # Current level - optimized for this repository
+      wsjf: 0.6           # Higher weight on business value
+      ice: 0.1            # Lower on execution ease (complex domain)
+      technical_debt: 0.2  # Moderate focus on debt
+      security: 0.1       # Standard security priority
+    
+    # Fallback weights for different maturity transitions
+    developing:
+      wsjf: 0.5
+      ice: 0.2
+      technical_debt: 0.2
+      security: 0.1
+    
+    advanced:
+      wsjf: 0.5
+      ice: 0.1
+      technical_debt: 0.3  # Higher debt focus at advanced level
+      security: 0.1
+  
+  # Score thresholds and modifiers
+  thresholds:
+    min_composite_score: 15  # Minimum score to be actionable
+    max_risk_tolerance: 0.7  # 0.0-1.0 risk acceptance
+    security_boost_multiplier: 2.5  # Critical security issues
+    compliance_boost_multiplier: 2.0  # Regulatory compliance
+    performance_boost_multiplier: 1.5  # Performance improvements
+    
+  # Domain-specific boosts for neuromorphic computing
+  domain_boosts:
+    hardware_optimization: 1.8  # Loihi 3 specific optimizations
+    energy_efficiency: 1.6      # Critical for neuromorphic
+    compilation_performance: 1.4 # Core compiler functionality
+    spike_encoding: 1.3          # SpikeFormer specific
+    
+# Continuous discovery configuration
+discovery:
+  # Signal sources with priority weighting
+  sources:
+    git_history:
+      enabled: true
+      weight: 0.25
+      scan_depth: 100  # commits to analyze
+      keywords: ["TODO", "FIXME", "HACK", "DEPRECATED", "NotImplementedError"]
+    
+    static_analysis:
+      enabled: true
+      weight: 0.30
+      tools:
+        - pylint
+        - mypy
+        - bandit  # security
+        - flake8
+        - complexity_analysis
+    
+    issue_trackers:
+      enabled: true
+      weight: 0.20
+      sources:
+        - github_issues
+        - github_prs
+        - code_review_comments
+    
+    vulnerability_databases:
+      enabled: true
+      weight: 0.15
+      sources:
+        - github_advisory
+        - pypi_advisory
+        - snyk_database
+        - osv_database
+    
+    performance_monitoring:
+      enabled: true
+      weight: 0.10
+      metrics:
+        - compilation_time
+        - memory_usage
+        - test_execution_time
+        - code_coverage_trends
+  
+  # Automated scanning schedule
+  schedule:
+    immediate: ["security_critical", "build_breaking"]
+    hourly: ["dependency_vulnerabilities", "pr_reviews"]
+    daily: ["static_analysis", "performance_regression"]
+    weekly: ["technical_debt_assessment", "architecture_review"]
+    monthly: ["strategic_alignment", "technology_trends"]
+
+# Work item classification and scoring
+classification:
+  categories:
+    security:
+      base_priority: 90
+      urgency_multiplier: 2.5
+      keywords: ["security", "vulnerability", "CVE", "exploit"]
+    
+    implementation:
+      base_priority: 70
+      urgency_multiplier: 1.0
+      keywords: ["NotImplementedError", "TODO", "missing", "incomplete"]
+    
+    performance:
+      base_priority: 60
+      urgency_multiplier: 1.2
+      keywords: ["slow", "optimization", "performance", "memory"]
+    
+    technical_debt:
+      base_priority: 50
+      urgency_multiplier: 0.8
+      keywords: ["refactor", "cleanup", "debt", "complex"]
+    
+    automation:
+      base_priority: 65
+      urgency_multiplier: 1.1
+      keywords: ["CI", "automation", "testing", "deployment"]
+    
+    documentation:
+      base_priority: 30
+      urgency_multiplier: 0.6
+      keywords: ["docs", "documentation", "README", "guide"]
+
+# Execution configuration
+execution:
+  # Concurrency and resource limits
+  max_concurrent_tasks: 1
+  max_task_duration_hours: 8
+  max_daily_tasks: 5
+  
+  # Quality gates
+  quality_requirements:
+    min_test_coverage: 80
+    max_complexity_increase: 10
+    max_performance_regression: 5  # percent
+    security_scan_required: true
+    
+  # Rollback triggers
+  rollback_conditions:
+    test_failure: true
+    build_failure: true
+    security_violation: true
+    performance_regression: 10  # percent threshold
+    coverage_drop: 5  # percent threshold
+  
+  # Branch and PR management
+  branch_strategy:
+    prefix: "auto-value"
+    naming_pattern: "{category}-{id}-{slug}"
+    auto_cleanup: true
+    cleanup_after_days: 30
+  
+  pr_configuration:
+    auto_assign_reviewers: true
+    require_approval: false  # for autonomous mode
+    auto_merge_conditions:
+      - all_tests_pass
+      - security_scan_clear
+      - no_conflicts
+    labels:
+      - "autonomous"
+      - "value-driven"
+      - "{category}"
+
+# Learning and adaptation
+learning:
+  # Feedback collection
+  metrics_collection:
+    estimation_accuracy: true
+    value_realization: true
+    execution_efficiency: true
+    user_satisfaction: false  # autonomous mode
+  
+  # Model adaptation
+  adaptation_config:
+    learning_rate: 0.1
+    confidence_threshold: 0.8
+    recalibration_frequency: 50  # tasks
+    model_persistence: true
+  
+  # Historical analysis
+  analysis_window:
+    short_term: 30   # days
+    medium_term: 90  # days
+    long_term: 365   # days
+
+# Neuromorphic domain-specific configuration
+domain_specific:
+  neuromorphic_priorities:
+    # Loihi 3 hardware compatibility
+    loihi3_compatibility:
+      weight: 2.0
+      keywords: ["loihi", "neuromorphic", "hardware", "deployment"]
+    
+    # Energy efficiency (critical for neuromorphic)
+    energy_optimization:
+      weight: 1.8
+      keywords: ["energy", "power", "efficiency", "consumption"]
+    
+    # Spike-based computation
+    spike_optimization:
+      weight: 1.6
+      keywords: ["spike", "temporal", "encoding", "spikeformer"]
+    
+    # Compilation performance
+    compilation_efficiency:
+      weight: 1.4
+      keywords: ["compile", "optimization", "backend", "code_gen"]
+  
+  # Research and innovation tracking
+  research_integration:
+    track_papers: true
+    conferences: ["CVPR", "NeurIPS", "IJCNN", "NICE"]
+    keywords: ["transformer", "attention", "neuromorphic", "spike"]
+    innovation_boost: 1.2
+
+# Reporting and visualization
+reporting:
+  # Dashboard configuration
+  dashboard:
+    update_frequency: "hourly"
+    metrics_retention: 90  # days
+    visualizations:
+      - "value_delivery_trend"
+      - "technical_debt_heatmap"
+      - "execution_velocity"
+      - "quality_metrics"
+  
+  # Export formats
+  export_formats:
+    backlog: "markdown"
+    metrics: "json"
+    reports: "html"
+    charts: "png"
+  
+  # Notification settings
+  notifications:
+    high_value_opportunities: true
+    execution_failures: true
+    quality_gate_violations: true
+    milestone_achievements: true
+
+# Integration with external tools
+integrations:
+  # Development tools
+  development:
+    ide_integration: false  # autonomous mode
+    code_review_tools: ["github"]
+    project_management: ["github_projects"]
+  
+  # Monitoring and alerting
+  monitoring:
+    metrics_backend: "prometheus"
+    alerting: "grafana"
+    log_aggregation: "stdout"  # for containerized deployment
+  
+  # Security tools
+  security:
+    vulnerability_scanning: ["bandit", "safety"]
+    dependency_scanning: ["pip-audit"]
+    container_scanning: ["trivy"]
+
+# Repository-specific customizations
+customizations:
+  # File patterns to prioritize
+  high_priority_files:
+    - "src/spike_transformer_compiler/compiler.py"
+    - "src/spike_transformer_compiler/backend.py"
+    - "src/spike_transformer_compiler/optimization.py"
+    - "pyproject.toml"
+    - "requirements*.txt"
+  
+  # Exclusion patterns
+  ignore_patterns:
+    - "*.pyc"
+    - "__pycache__"
+    - ".git"
+    - "docs/_build"
+    - "*.egg-info"
+  
+  # Custom scoring rules
+  custom_rules:
+    # Boost implementation of NotImplementedError
+    not_implemented_boost: 2.0
+    
+    # Boost CI/CD related improvements
+    cicd_missing_boost: 2.5
+    
+    # Boost core compiler functionality
+    compiler_core_boost: 1.8
