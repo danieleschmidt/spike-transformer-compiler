@@ -205,3 +205,133 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# ============================================================================
+# Spike-Transformer-Compiler Specific
+# ============================================================================
+
+# Compiled models and artifacts
+*.spike
+*.loihi
+models/compiled/
+artifacts/
+
+# Compilation cache
+.cache/
+.compilation_cache/
+
+# Energy profiling and monitoring
+energy_profiles/
+monitoring_data/
+*.energy.json
+*.perf.json
+
+# Hardware simulation data
+simulation_output/
+sim_traces/
+*.sim
+
+# Debug outputs
+debug/
+ir_dumps/
+*.ir.txt
+*.graph.dot
+*.graph.png
+
+# Model weights and checkpoints (large files)
+models/weights/
+checkpoints/
+*.pth
+*.ckpt
+*.safetensors
+
+# Neuromorphic hardware logs
+loihi_logs/
+hardware_traces/
+*.nxlog
+
+# Benchmark results
+benchmarks/results/
+performance_data/
+*.benchmark.json
+
+# Temporary compilation files
+tmp_compile/
+.tmp/
+
+# VS Code workspace settings (allow but not user-specific)
+.vscode/settings.json
+.vscode/launch.json
+.vscode/tasks.json
+.vscode/extensions.json
+
+# IDE specific files
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS specific
+.DS_Store
+.DS_Store?
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windows specific
+*.lnk
+desktop.ini
+
+# Linux specific
+.directory
+*.tmp
+
+# Documentation build artifacts  
+docs/_build/
+docs/build/
+site/
+
+# Test artifacts
+test_outputs/
+test_models/
+coverage_html/
+
+# Package management
+poetry.lock
+Pipfile.lock
+conda-lock.yml
+
+# Container artifacts
+.devcontainer/.vscode/
+
+# Git LFS tracking (uncomment if using LFS for models)
+# *.pth filter=lfs diff=lfs merge=lfs -text
+# *.ckpt filter=lfs diff=lfs merge=lfs -text
+
+# External dependencies (if vendored)
+vendor/
+third_party/
+
+# CI/CD artifacts
+.github/.env
+.github/secrets/
+
+# Local development overrides
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Profiling outputs
+*.prof
+*.profile
+memory_profile.txt
+
+# Security scanning outputs
+security_reports/
+*.sarif
+
+# Application logs
+logs/
+*.log.*
+application.log

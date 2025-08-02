@@ -1,21 +1,68 @@
+# EditorConfig for Spike-Transformer-Compiler
+# https://editorconfig.org/
+
 root = true
 
+# All files
 [*]
 charset = utf-8
 end_of_line = lf
-indent_style = space
-indent_size = 4
 insert_final_newline = true
 trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
 
+# Python files
+[*.py]
+indent_size = 4
+max_line_length = 88
+
+# Makefile
+[Makefile]
+indent_style = tab
+indent_size = 4
+
+# YAML files
 [*.{yml,yaml}]
 indent_size = 2
 
-[*.{json,js,ts}]
+# JSON files
+[*.json]
 indent_size = 2
 
+# JavaScript/TypeScript (for any frontend components)
+[*.{js,ts,jsx,tsx}]
+indent_size = 2
+
+# Markdown files
 [*.md]
 trim_trailing_whitespace = false
+max_line_length = 80
 
-[Makefile]
-indent_style = tab
+# Configuration files
+[*.{toml,cfg,ini}]
+indent_size = 4
+
+# Shell scripts
+[*.{sh,bash}]
+indent_size = 2
+
+# Dockerfile
+[Dockerfile*]
+indent_size = 2
+
+# GitHub Actions workflows
+[.github/workflows/*.{yml,yaml}]
+indent_size = 2
+
+# Documentation
+[docs/**/*.{rst,md}]
+max_line_length = 80
+
+# Test files
+[tests/**/*.py]
+max_line_length = 100
+
+# Jupyter notebooks (if any)
+[*.ipynb]
+indent_size = 1

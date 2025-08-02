@@ -30,8 +30,30 @@
         "**/node_modules": true,
         "**/bower_components": true,
         "**/.venv": true,
-        "**/venv": true
+        "**/venv": true,
+        "**/.cache": true,
+        "**/logs": true,
+        "**/debug": true,
+        "**/models/weights": true,
+        "**/models/cache": true,
+        "**/artifacts": true,
+        "**/simulation_output": true
     },
+    "files.associations": {
+        "*.spike": "yaml",
+        "*.loihi": "json", 
+        "*.ir": "llvm",
+        "*.nxlog": "log"
+    },
+    "cSpell.words": [
+        "neuromorphic",
+        "spikeformer", 
+        "loihi",
+        "pytorch",
+        "quantization",
+        "sparsity",
+        "synaptic"
+    ],
     "terminal.integrated.env.linux": {
         "PYTHONPATH": "${workspaceFolder}/src"
     },
