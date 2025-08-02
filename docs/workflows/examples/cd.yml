@@ -1,0 +1,292 @@
+name: Continuous Deployment
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to deploy'
+        required: true
+        default: 'latest'
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+        - staging
+        - production
+
+env:
+  PYTHON_VERSION: '3.11'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  validate-release:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is_prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Extract version info
+      id: version
+      run: |
+        if [ "${{ github.event_name }}" = "release" ]; then
+          VERSION=${{ github.event.release.tag_name }}
+          PRERELEASE=${{ github.event.release.prerelease }}
+        else
+          VERSION=${{ github.event.inputs.version }}
+          PRERELEASE=false
+        fi
+        echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        echo "prerelease=${PRERELEASE}" >> $GITHUB_OUTPUT
+    
+    - name: Validate version format
+      run: |
+        if [[ ! "${{ steps.version.outputs.version }}" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$ ]]; then
+          echo "Invalid version format: ${{ steps.version.outputs.version }}"
+          exit 1
+        fi
+
+  build-and-test:
+    needs: validate-release
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+        pip install -e ".[dev]"
+    
+    - name: Run comprehensive tests
+      run: |
+        pytest --cov=spike_transformer_compiler --cov-report=xml
+        pytest tests/integration/ --timeout=600
+        pytest tests/performance/ --benchmark-only
+    
+    - name: Build package
+      run: |
+        python -m build
+    
+    - name: Check package
+      run: |
+        twine check dist/*
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: python-package
+        path: dist/
+
+  build-container:
+    needs: [validate-release, build-and-test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          type=raw,value=latest,enable={{is_default_branch}}
+    
+    - name: Build and push Docker image
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          VERSION=${{ needs.validate-release.outputs.version }}
+    
+    - name: Output image
+      id: image
+      run: |
+        echo "image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.validate-release.outputs.version }}" >> $GITHUB_OUTPUT
+
+  security-scan:
+    needs: build-container
+    runs-on: ubuntu-latest
+    steps:
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ needs.build-container.outputs.image }}
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+    
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+    
+    - name: Fail on critical vulnerabilities
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ needs.build-container.outputs.image }}
+        format: 'table'
+        exit-code: '1'
+        severity: 'CRITICAL,HIGH'
+
+  deploy-staging:
+    needs: [validate-release, build-container, security-scan]
+    runs-on: ubuntu-latest
+    if: needs.validate-release.outputs.is_prerelease == 'true' || github.event.inputs.environment == 'staging'
+    environment:
+      name: staging
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+    - name: Deploy to staging
+      id: deploy
+      run: |
+        echo "Deploying ${{ needs.build-container.outputs.image }} to staging"
+        # Add actual deployment commands here
+        echo "url=https://staging.spike-compiler.example.com" >> $GITHUB_OUTPUT
+    
+    - name: Run smoke tests
+      run: |
+        # Add smoke tests for staging deployment
+        echo "Running smoke tests against staging deployment"
+        # curl -f https://staging.spike-compiler.example.com/health
+
+  deploy-production:
+    needs: [validate-release, build-container, security-scan, deploy-staging]
+    runs-on: ubuntu-latest
+    if: needs.validate-release.outputs.is_prerelease == 'false' && github.event.inputs.environment != 'staging'
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+    - name: Deploy to production
+      id: deploy
+      run: |
+        echo "Deploying ${{ needs.build-container.outputs.image }} to production"
+        # Add actual deployment commands here
+        echo "url=https://spike-compiler.example.com" >> $GITHUB_OUTPUT
+    
+    - name: Run smoke tests
+      run: |
+        # Add smoke tests for production deployment
+        echo "Running smoke tests against production deployment"
+        # curl -f https://spike-compiler.example.com/health
+
+  publish-package:
+    needs: [validate-release, build-and-test]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' && needs.validate-release.outputs.is_prerelease == 'false'
+    environment:
+      name: pypi
+      url: https://pypi.org/p/spike-transformer-compiler
+    steps:
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: python-package
+        path: dist/
+    
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        password: ${{ secrets.PYPI_API_TOKEN }}
+    
+    - name: Verify PyPI package
+      run: |
+        sleep 60  # Wait for PyPI to propagate
+        pip install spike-transformer-compiler==${{ needs.validate-release.outputs.version }}
+        python -c "import spike_transformer_compiler; print(spike_transformer_compiler.__version__)"
+
+  create-github-release-assets:
+    needs: [validate-release, build-and-test, build-container]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: python-package
+        path: dist/
+    
+    - name: Generate release notes
+      run: |
+        echo "# Release ${{ needs.validate-release.outputs.version }}" > release-notes.md
+        echo "" >> release-notes.md
+        echo "## Container Images" >> release-notes.md
+        echo "- \`${{ needs.build-container.outputs.image }}\`" >> release-notes.md
+        echo "- Digest: \`${{ needs.build-container.outputs.digest }}\`" >> release-notes.md
+        echo "" >> release-notes.md
+        echo "## Python Package" >> release-notes.md
+        echo "\`\`\`bash" >> release-notes.md
+        echo "pip install spike-transformer-compiler==${{ needs.validate-release.outputs.version }}" >> release-notes.md
+        echo "\`\`\`" >> release-notes.md
+    
+    - name: Upload release assets
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          dist/*
+          release-notes.md
+        body_path: release-notes.md
+
+  notify-deployment:
+    needs: [deploy-staging, deploy-production, publish-package]
+    runs-on: ubuntu-latest
+    if: always() && (needs.deploy-staging.result == 'success' || needs.deploy-production.result == 'success')
+    steps:
+    - name: Notify team
+      run: |
+        echo "Deployment completed for version ${{ needs.validate-release.outputs.version }}"
+        # Add notification logic (Slack, Discord, email, etc.)
+        
+        if [ "${{ needs.deploy-staging.result }}" = "success" ]; then
+          echo "Staging deployment: SUCCESS"
+        fi
+        
+        if [ "${{ needs.deploy-production.result }}" = "success" ]; then
+          echo "Production deployment: SUCCESS"
+        fi
+        
+        if [ "${{ needs.publish-package.result }}" = "success" ]; then
+          echo "PyPI package published: SUCCESS"
+        fi

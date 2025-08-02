@@ -1,0 +1,285 @@
+name: Dependency Updates
+
+on:
+  schedule:
+    # Run weekly on Mondays at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  update-python-dependencies:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dependency-type: ["production", "development"]
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.DEPENDENCY_UPDATE_TOKEN || secrets.GITHUB_TOKEN }}
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install pip-tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install pip-tools
+    
+    - name: Update production dependencies
+      if: matrix.dependency-type == 'production'
+      run: |
+        pip-compile --upgrade requirements.in
+        pip-compile --upgrade pyproject.toml
+    
+    - name: Update development dependencies
+      if: matrix.dependency-type == 'development'
+      run: |
+        pip-compile --upgrade requirements-dev.in
+    
+    - name: Install updated dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+        pip install -e ".[dev]"
+    
+    - name: Run basic tests
+      run: |
+        pytest tests/test_*.py --maxfail=5 -x
+    
+    - name: Check for changes
+      id: changes
+      run: |
+        if git diff --quiet; then
+          echo "changed=false" >> $GITHUB_OUTPUT
+        else
+          echo "changed=true" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Create Pull Request
+      if: steps.changes.outputs.changed == 'true'
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.DEPENDENCY_UPDATE_TOKEN || secrets.GITHUB_TOKEN }}
+        commit-message: "build: update ${{ matrix.dependency-type }} dependencies"
+        title: "Update ${{ matrix.dependency-type }} dependencies"
+        body: |
+          ## Dependency Updates
+          
+          This PR updates ${{ matrix.dependency-type }} dependencies to their latest compatible versions.
+          
+          ### Changes
+          
+          The following dependency files have been updated:
+          - requirements.txt (production dependencies)
+          - requirements-dev.txt (development dependencies)
+          
+          ### Testing
+          
+          - [x] Basic test suite passes
+          - [ ] Manual testing required
+          - [ ] Performance impact assessment needed
+          
+          ### Notes
+          
+          This PR was automatically created by the dependency update workflow.
+          Please review the changes and run additional tests before merging.
+          
+          /cc @maintenance-team
+        branch: "dependency-updates/${{ matrix.dependency-type }}-${{ github.run_number }}"
+        delete-branch: true
+        labels: |
+          dependencies
+          automated
+          ${{ matrix.dependency-type }}
+
+  update-docker-base-images:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.DEPENDENCY_UPDATE_TOKEN || secrets.GITHUB_TOKEN }}
+    
+    - name: Update base image versions
+      run: |
+        # Extract current base image
+        CURRENT_BASE=$(grep "^FROM" Dockerfile | head -1 | awk '{print $2}')
+        echo "Current base image: $CURRENT_BASE"
+        
+        # Get latest Python image tag
+        PYTHON_VERSION=$(echo $CURRENT_BASE | grep -o 'python:[0-9.]\+' | cut -d: -f2)
+        LATEST_PYTHON="python:${PYTHON_VERSION}-slim"
+        
+        # Update Dockerfile
+        sed -i "s|^FROM python:.*|FROM $LATEST_PYTHON|" Dockerfile
+        
+        # Update docker-compose.yml if exists
+        if [ -f "docker-compose.yml" ]; then
+          sed -i "s|python:.*|$LATEST_PYTHON|g" docker-compose.yml
+        fi
+    
+    - name: Test Docker build
+      run: |
+        docker build -t spike-compiler-test:latest .
+        docker run --rm spike-compiler-test:latest python --version
+        docker run --rm spike-compiler-test:latest python -c "import spike_transformer_compiler"
+    
+    - name: Check for changes
+      id: changes
+      run: |
+        if git diff --quiet; then
+          echo "changed=false" >> $GITHUB_OUTPUT
+        else
+          echo "changed=true" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Create Pull Request
+      if: steps.changes.outputs.changed == 'true'
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.DEPENDENCY_UPDATE_TOKEN || secrets.GITHUB_TOKEN }}
+        commit-message: "build: update Docker base images"
+        title: "Update Docker base images"
+        body: |
+          ## Docker Base Image Update
+          
+          This PR updates the Docker base images to their latest versions.
+          
+          ### Changes
+          
+          - Updated Python base image in Dockerfile
+          - Updated any references in docker-compose.yml
+          
+          ### Testing
+          
+          - [x] Docker build succeeds
+          - [x] Python imports work correctly
+          - [ ] Full integration tests required
+          
+          ### Security
+          
+          Updated base images include the latest security patches.
+          
+          This PR was automatically created by the dependency update workflow.
+        branch: "dependency-updates/docker-base-${{ github.run_number }}"
+        delete-branch: true
+        labels: |
+          dependencies
+          docker
+          automated
+
+  update-github-actions:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.DEPENDENCY_UPDATE_TOKEN || secrets.GITHUB_TOKEN }}
+    
+    - name: Update GitHub Actions
+      uses: renovatebot/github-action@v39.1.1
+      with:
+        configurationFile: .github/renovate.json
+        token: ${{ secrets.DEPENDENCY_UPDATE_TOKEN || secrets.GITHUB_TOKEN }}
+    
+    # Alternative manual approach
+    - name: Manual GitHub Actions update
+      run: |
+        # Update common actions to latest versions
+        find .github/workflows -name "*.yml" -o -name "*.yaml" | xargs sed -i 's/actions\/checkout@v3/actions\/checkout@v4/g'
+        find .github/workflows -name "*.yml" -o -name "*.yaml" | xargs sed -i 's/actions\/setup-python@v3/actions\/setup-python@v4/g'
+        find .github/workflows -name "*.yml" -o -name "*.yaml" | xargs sed -i 's/actions\/upload-artifact@v2/actions\/upload-artifact@v3/g'
+        find .github/workflows -name "*.yml" -o -name "*.yaml" | xargs sed -i 's/actions\/download-artifact@v2/actions\/download-artifact@v3/g'
+        find .github/workflows -name "*.yml" -o -name "*.yaml" | xargs sed -i 's/docker\/build-push-action@v3/docker\/build-push-action@v5/g'
+        find .github/workflows -name "*.yml" -o -name "*.yaml" | xargs sed -i 's/docker\/setup-buildx-action@v2/docker\/setup-buildx-action@v3/g'
+    
+    - name: Check for changes
+      id: changes
+      run: |
+        if git diff --quiet; then
+          echo "changed=false" >> $GITHUB_OUTPUT
+        else
+          echo "changed=true" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Create Pull Request
+      if: steps.changes.outputs.changed == 'true'
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.DEPENDENCY_UPDATE_TOKEN || secrets.GITHUB_TOKEN }}
+        commit-message: "ci: update GitHub Actions to latest versions"
+        title: "Update GitHub Actions versions"
+        body: |
+          ## GitHub Actions Update
+          
+          This PR updates GitHub Actions to their latest versions.
+          
+          ### Changes
+          
+          - Updated actions/checkout to v4
+          - Updated actions/setup-python to v4
+          - Updated actions/upload-artifact to v3
+          - Updated actions/download-artifact to v3
+          - Updated Docker actions to latest versions
+          
+          ### Benefits
+          
+          - Latest features and performance improvements
+          - Security updates
+          - Bug fixes
+          
+          This PR was automatically created by the dependency update workflow.
+        branch: "dependency-updates/github-actions-${{ github.run_number }}"
+        delete-branch: true
+        labels: |
+          dependencies
+          github-actions
+          automated
+
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+        pip install safety pip-audit
+    
+    - name: Run dependency audit
+      run: |
+        echo "## Dependency Audit Report" > audit-report.md
+        echo "" >> audit-report.md
+        echo "### Safety Check" >> audit-report.md
+        echo "\`\`\`" >> audit-report.md
+        safety check --short-report >> audit-report.md || true
+        echo "\`\`\`" >> audit-report.md
+        echo "" >> audit-report.md
+        echo "### Pip Audit" >> audit-report.md
+        echo "\`\`\`" >> audit-report.md
+        pip-audit >> audit-report.md || true
+        echo "\`\`\`" >> audit-report.md
+    
+    - name: Create issue if vulnerabilities found
+      run: |
+        if safety check --json --output safety.json && pip-audit --format=json --output=pip-audit.json; then
+          echo "No vulnerabilities found"
+        else
+          echo "Vulnerabilities detected - would create GitHub issue here"
+          # Add GitHub issue creation logic with vulnerability details
+        fi
+    
+    - name: Upload audit results
+      uses: actions/upload-artifact@v3
+      with:
+        name: dependency-audit-report
+        path: |
+          audit-report.md
+          safety.json
+          pip-audit.json
