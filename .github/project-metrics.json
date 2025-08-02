@@ -1,0 +1,208 @@
+{
+  "project": {
+    "name": "spike-transformer-compiler",
+    "version": "0.1.0",
+    "description": "TVM-style compiler for PyTorch SpikeFormer models targeting Intel Loihi 3",
+    "repository": "danieleschmidt/spike-transformer-compiler",
+    "last_updated": "2025-08-02T00:00:00Z"
+  },
+  "health_metrics": {
+    "code_quality": {
+      "test_coverage": {
+        "target": 90,
+        "current": 0,
+        "trend": "stable"
+      },
+      "technical_debt_ratio": {
+        "target": 5,
+        "current": 0,
+        "trend": "improving"
+      },
+      "code_duplication": {
+        "target": 3,
+        "current": 0,
+        "trend": "stable"
+      },
+      "cyclomatic_complexity": {
+        "target": 10,
+        "current": 0,
+        "trend": "stable"
+      }
+    },
+    "security": {
+      "vulnerability_count": {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0
+      },
+      "dependency_freshness": {
+        "outdated_count": 0,
+        "last_update": "2025-08-02T00:00:00Z"
+      },
+      "license_compliance": {
+        "compliant": true,
+        "issues": []
+      }
+    },
+    "performance": {
+      "compilation_speed": {
+        "avg_time_ms": 0,
+        "target_ms": 5000,
+        "trend": "stable"
+      },
+      "energy_efficiency": {
+        "avg_energy_mj": 0,
+        "target_mj": 1.0,
+        "trend": "improving"
+      },
+      "model_accuracy": {
+        "avg_accuracy": 0,
+        "target_accuracy": 0.85,
+        "trend": "stable"
+      }
+    },
+    "development": {
+      "build_success_rate": {
+        "percentage": 0,
+        "target": 95,
+        "trend": "stable"
+      },
+      "deployment_frequency": {
+        "per_week": 0,
+        "target": 2,
+        "trend": "stable"
+      },
+      "lead_time_hours": {
+        "average": 0,
+        "target": 24,
+        "trend": "improving"
+      },
+      "mttr_hours": {
+        "average": 0,
+        "target": 4,
+        "trend": "stable"
+      }
+    }
+  },
+  "repository_metrics": {
+    "files": {
+      "total_files": 0,
+      "source_files": 0,
+      "test_files": 0,
+      "doc_files": 0
+    },
+    "lines_of_code": {
+      "total": 0,
+      "source": 0,
+      "tests": 0,
+      "comments": 0
+    },
+    "dependencies": {
+      "production": 0,
+      "development": 0,
+      "outdated": 0
+    },
+    "contributors": {
+      "total": 0,
+      "active_month": 0,
+      "active_quarter": 0
+    }
+  },
+  "ci_cd_metrics": {
+    "build_pipeline": {
+      "avg_duration_minutes": 0,
+      "success_rate_percent": 0,
+      "runs_per_day": 0
+    },
+    "test_execution": {
+      "total_tests": 0,
+      "avg_execution_time_seconds": 0,
+      "flaky_test_rate": 0
+    },
+    "deployment": {
+      "frequency_per_week": 0,
+      "success_rate_percent": 0,
+      "rollback_rate_percent": 0
+    }
+  },
+  "neuromorphic_metrics": {
+    "compilation": {
+      "supported_models": [
+        "SpikeFormer",
+        "DSFormer"
+      ],
+      "target_hardware": [
+        "Loihi 3",
+        "Simulation"
+      ],
+      "optimization_levels": [0, 1, 2, 3]
+    },
+    "performance": {
+      "energy_efficiency_vs_gpu": {
+        "improvement_factor": 0,
+        "target_factor": 100
+      },
+      "latency_vs_cpu": {
+        "improvement_factor": 0,
+        "target_factor": 10
+      },
+      "sparsity_ratio": {
+        "average": 0,
+        "target": 0.95
+      }
+    },
+    "accuracy": {
+      "preservation_rate": {
+        "average": 0,
+        "target": 0.98
+      },
+      "quantization_impact": {
+        "average_loss": 0,
+        "target_loss": 0.02
+      }
+    }
+  },
+  "alerts": {
+    "thresholds": {
+      "test_coverage_below": 80,
+      "build_failure_rate_above": 10,
+      "security_vulnerabilities_critical": 0,
+      "compilation_time_above_ms": 10000,
+      "energy_consumption_above_mj": 2.0
+    },
+    "escalation": {
+      "level_1": "automated_fix",
+      "level_2": "team_notification",
+      "level_3": "manager_escalation",
+      "level_4": "emergency_response"
+    }
+  },
+  "reporting": {
+    "frequency": {
+      "daily": ["build_status", "test_results"],
+      "weekly": ["metrics_summary", "security_scan"],
+      "monthly": ["performance_trends", "technical_debt"],
+      "quarterly": ["architecture_review", "roadmap_update"]
+    },
+    "stakeholders": {
+      "development_team": ["daily", "weekly"],
+      "product_management": ["weekly", "monthly"],
+      "executives": ["monthly", "quarterly"]
+    }
+  },
+  "automation": {
+    "enabled_features": [
+      "dependency_updates",
+      "security_scanning",
+      "performance_monitoring",
+      "metrics_collection"
+    ],
+    "scheduled_tasks": {
+      "dependency_update": "weekly",
+      "security_scan": "daily",
+      "performance_benchmark": "nightly",
+      "metrics_aggregation": "hourly"
+    }
+  }
+}
