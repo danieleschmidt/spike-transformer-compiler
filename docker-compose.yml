@@ -1,58 +1,154 @@
 version: '3.8'
 
 services:
-  # Development environment
+  # ============================================================================
+  # Core Development Services
+  # ============================================================================
+  
+  # Development environment with full toolchain
   spike-compiler-dev:
     build:
       context: .
       target: development
+      args:
+        BUILDKIT_INLINE_CACHE: 1
     volumes:
       - .:/app
       - pip-cache:/root/.cache/pip
+      - compilation-cache:/app/.cache
     environment:
       - PYTHONPATH=/app/src
+      - SPIKE_COMPILER_ENV=development
+      - DEBUG_MODE=true
+      - COMPILATION_CACHE_ENABLED=true
     ports:
-      - "8000:8000"  # For documentation server
+      - "8000:8000"  # Documentation server
+      - "8080:8080"  # Development server
     command: bash
     stdin_open: true
     tty: true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import spike_transformer_compiler; print('OK')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Production environment
   spike-compiler:
     build:
       context: .
       target: production
+      args:
+        BUILDKIT_INLINE_CACHE: 1
     environment:
+      - SPIKE_COMPILER_ENV=production
       - PYTHONPATH=/home/compiler/app/src
-    command: ["spike-compile", "--help"]
+    command: ["python", "-m", "spike_transformer_compiler.cli", "--help"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import spike_transformer_compiler; print('OK')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  # Testing environment
+  # ============================================================================
+  # Testing and Quality Assurance
+  # ============================================================================
+
+  # Testing environment with comprehensive test suite
   spike-compiler-test:
     build:
       context: .
       target: development
     volumes:
       - .:/app
+      - test-artifacts:/app/tests/artifacts
     environment:
       - PYTHONPATH=/app/src
-    command: ["pytest", "--cov=spike_transformer_compiler"]
+      - SPIKE_COMPILER_ENV=testing
+      - TEST_HARDWARE_AVAILABLE=false
+    command: ["pytest", "--cov=spike_transformer_compiler", "--tb=short"]
+    profiles:
+      - testing
 
-  # Documentation server
-  docs:
+  # Performance benchmarking
+  benchmarks:
     build:
       context: .
       target: development
     volumes:
       - .:/app
+      - benchmark-results:/app/benchmarks/results
+    environment:
+      - PYTHONPATH=/app/src
+      - SPIKE_COMPILER_ENV=benchmarking
+    command: ["pytest", "tests/benchmarks/", "-m", "performance", "--benchmark-json=results.json"]
+    profiles:
+      - testing
+      - benchmarks
+
+  # Security scanning
+  security-scan:
+    build:
+      context: .
+      target: security
+    volumes:
+      - security-reports:/app/security_reports
+    profiles:
+      - security
+
+  # ============================================================================
+  # Hardware-Specific Services
+  # ============================================================================
+
+  # Loihi 3 hardware interface
+  loihi3-compiler:
+    build:
+      context: .
+      target: loihi3
+    volumes:
+      - loihi-artifacts:/home/compiler/app/artifacts
+    environment:
+      - LOIHI3_SDK_PATH=/opt/intel/loihi3-sdk
+      - HARDWARE_SIMULATION_ENABLED=true
+    command: ["python", "-m", "spike_transformer_compiler.cli", "--target", "loihi3", "--help"]
+    profiles:
+      - hardware
+    devices:
+      - /dev/bus/usb:/dev/bus/usb  # USB access for hardware
+
+  # GPU baseline comparison
+  gpu-baseline:
+    build:
+      context: .
+      target: gpu
+    volumes:
+      - gpu-artifacts:/home/compiler/app/artifacts
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    command: ["python", "-m", "spike_transformer_compiler.benchmarks.gpu_baseline"]
+    profiles:
+      - gpu
+    runtime: nvidia
+
+  # ============================================================================
+  # Documentation and Development Tools
+  # ============================================================================
+
+  # Documentation server with live reload
+  docs:
+    build:
+      context: .
+      target: docs
+    volumes:
+      - .:/app
       - docs-build:/app/docs/_build
     ports:
-      - "8080:8000"
-    working_dir: /app/docs/_build/html
-    command: ["python", "-m", "http.server", "8000", "--bind", "0.0.0.0"]
-    depends_on:
-      - spike-compiler-dev
+      - "8090:8000"
+    profiles:
+      - docs
 
-  # Jupyter notebook for experimentation
+  # Jupyter Lab for experimentation and model development
   jupyter:
     build:
       context: .
@@ -60,41 +156,129 @@ services:
     volumes:
       - .:/app
       - jupyter-data:/home/jovyan/work
+      - models-cache:/app/models/cache
     ports:
       - "8888:8888"
     environment:
       - JUPYTER_ENABLE_LAB=yes
+      - PYTHONPATH=/app/src
     command: >
       bash -c "pip install jupyter jupyterlab &&
-               jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root"
+               jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root
+               --ServerApp.token='' --ServerApp.password=''"
+    profiles:
+      - development
 
-  # Monitoring stack (for operational observability)
+  # ============================================================================
+  # Monitoring and Observability
+  # ============================================================================
+
+  # Prometheus for metrics collection
   prometheus:
     image: prom/prometheus:latest
     ports:
       - "9090:9090"
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    profiles:
+      - monitoring
 
+  # Grafana for visualization
   grafana:
     image: grafana/grafana:latest
     ports:
       - "3000:3000"
     volumes:
       - grafana-data:/var/lib/grafana
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    profiles:
+      - monitoring
+    depends_on:
+      - prometheus
 
+  # ============================================================================
+  # Database and Storage Services  
+  # ============================================================================
+
+  # Redis for caching and session storage
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    profiles:
+      - development
+      - monitoring
+
+  # PostgreSQL for metadata and experiment tracking
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=spike_compiler
+      - POSTGRES_USER=spike_user
+      - POSTGRES_PASSWORD=spike_password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    profiles:
+      - development
+      - monitoring
+
+# ============================================================================
+# Volume Definitions
+# ============================================================================
 volumes:
   pip-cache:
+    driver: local
+  compilation-cache:
+    driver: local
   docs-build:
+    driver: local
   jupyter-data:
+    driver: local
+  test-artifacts:
+    driver: local
+  benchmark-results:
+    driver: local
+  security-reports:
+    driver: local
+  loihi-artifacts:
+    driver: local
+  gpu-artifacts:
+    driver: local
+  models-cache:
+    driver: local
   prometheus-data:
+    driver: local
   grafana-data:
+    driver: local
+  redis-data:
+    driver: local
+  postgres-data:
+    driver: local
+
+# ============================================================================
+# Network Definitions
+# ============================================================================
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
