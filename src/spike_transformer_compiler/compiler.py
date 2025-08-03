@@ -4,6 +4,11 @@ from typing import Any, Dict, Optional, Union
 import torch.nn as nn
 
 
+class CompilationError(Exception):
+    """Exception raised when compilation fails."""
+    pass
+
+
 class SpikeCompiler:
     """Main compiler interface for converting SpikeFormer models to neuromorphic binaries.
     
@@ -57,11 +62,70 @@ class SpikeCompiler:
         Raises:
             CompilationError: If compilation fails
         """
-        raise NotImplementedError("Compiler implementation pending")
+        from .frontend.pytorch_parser import PyTorchParser
+        from .ir.builder import SpikeIRBuilder
+        from .ir.passes import PassManager, DeadCodeElimination, SpikeFusion
+        from .backend.factory import BackendFactory
         
-    def create_optimizer(self) -> "Optimizer":
+        if self.verbose:
+            print(f"Compiling model for {self.target} target...")
+            
+        try:
+            # Stage 1: Frontend parsing
+            parser = PyTorchParser()
+            spike_graph = parser.parse_model(model, input_shape, self.time_steps)
+            
+            if self.verbose:
+                print(f"Parsed model: {len(spike_graph.nodes)} nodes, {len(spike_graph.edges)} edges")
+            
+            # Stage 2: Optimization passes
+            if optimizer is None:
+                optimizer = self.create_optimizer()
+                
+            optimized_graph = optimizer.run_all(spike_graph)
+            
+            if self.verbose:
+                print(f"Optimized model: {len(optimized_graph.nodes)} nodes")
+                
+            # Stage 3: Backend code generation
+            backend = BackendFactory.create_backend(
+                self.target, 
+                chip_config=chip_config,
+                resource_allocator=resource_allocator
+            )
+            
+            compiled_model = backend.compile_graph(
+                optimized_graph,
+                profile_energy=profile_energy,
+                debug=self.debug
+            )
+            
+            if self.verbose:
+                print("Compilation completed successfully")
+                
+            return compiled_model
+            
+        except Exception as e:
+            raise CompilationError(f"Compilation failed: {str(e)}") from e
+        
+    def create_optimizer(self) -> "PassManager":
         """Create optimization pipeline for the compiler."""
-        raise NotImplementedError("Optimizer creation pending")
+        from .ir.passes import PassManager, DeadCodeElimination, SpikeFusion, CommonSubexpressionElimination, MemoryOptimization
+        
+        optimizer = PassManager()
+        
+        # Add optimization passes based on optimization level
+        if self.optimization_level >= 1:
+            optimizer.add_pass(DeadCodeElimination())
+            
+        if self.optimization_level >= 2:
+            optimizer.add_pass(CommonSubexpressionElimination())
+            optimizer.add_pass(SpikeFusion())
+            
+        if self.optimization_level >= 3:
+            optimizer.add_pass(MemoryOptimization())
+            
+        return optimizer
         
     def set_debug_options(self, dump_ir: bool = False, dump_passes: bool = False) -> None:
         """Set debug options for compilation pipeline."""
@@ -78,8 +142,38 @@ class CompiledModel:
         
     def run(self, input_data: Any, time_steps: int = 4, return_spike_trains: bool = False) -> Any:
         """Run inference on the compiled model."""
-        raise NotImplementedError("Model execution pending")
+        if not hasattr(self, 'executor'):
+            raise RuntimeError("Model not properly compiled - missing executor")
+            
+        # Execute the model
+        output = self.executor.run(
+            input_data, 
+            time_steps=time_steps,
+            return_spike_trains=return_spike_trains
+        )
+        
+        # Update energy metrics if profiling enabled
+        if hasattr(self.executor, 'get_energy_consumption'):
+            self.energy_per_inference = self.executor.get_energy_consumption()
+            
+        return output
         
     def debug_trace(self) -> None:
         """Show execution trace for debugging."""
-        raise NotImplementedError("Debug trace pending")
+        if not hasattr(self, 'executor'):
+            print("Model not compiled - no execution trace available")
+            return
+            
+        if hasattr(self.executor, 'get_debug_trace'):
+            trace = self.executor.get_debug_trace()
+            print("Execution Trace:")
+            print("=" * 50)
+            for step in trace:
+                print(f"Step {step['step']}: {step['operation']} - {step['duration']:.3f}ms")
+                if 'spikes' in step:
+                    print(f"  Spikes: {step['spikes']} events")
+                if 'memory' in step:
+                    print(f"  Memory: {step['memory']} bytes")
+            print("=" * 50)
+        else:
+            print("Debug tracing not available for this backend")
