@@ -28,7 +28,7 @@ pip install spike-transformer-compiler[loihi3]
 pip install spike-transformer-compiler[viz]
 
 # Development installation
-git clone https://github.com/yourusername/spike-transformer-compiler
+git clone https://github.com/danieleschmidt/spike-transformer-compiler
 cd spike-transformer-compiler
 pip install -e ".[dev]"
 ```
@@ -563,9 +563,9 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 ```bibtex
 @software{spike_transformer_compiler,
   title={Spike-Transformer-Compiler: Neuromorphic Compilation for SpikeFormers},
-  author={Your Name},
+  author={Daniel Schmidt},
   year={2025},
-  url={https://github.com/yourusername/spike-transformer-compiler}
+  url={https://github.com/danieleschmidt/spike-transformer-compiler}
 }
 
 @inproceedings{dsformer_cvpr_2025,
