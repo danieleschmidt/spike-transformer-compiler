@@ -22,6 +22,8 @@ class PyTorchParser:
             nn.BatchNorm2d: self._parse_batchnorm,
             nn.AdaptiveAvgPool2d: self._parse_pooling,
             nn.MaxPool2d: self._parse_pooling,
+            nn.MultiheadAttention: self._parse_multihead_attention,
+            nn.LayerNorm: self._parse_layer_norm,
         }
         
     def parse_model(self, model: nn.Module, input_shape: Tuple[int, ...], time_steps: int = 4) -> SpikeGraph:
@@ -165,6 +167,95 @@ class PyTorchParser:
         )
         
         return pool_id
+        
+    def _parse_multihead_attention(self, builder: SpikeIRBuilder, layer: nn.MultiheadAttention, input_id: str, layer_name: str) -> str:
+        """Parse MultiheadAttention layer - convert to spike-based attention."""
+        attention_id = builder.add_spike_attention(
+            input_id,
+            embed_dim=layer.embed_dim,
+            num_heads=layer.num_heads,
+            dropout=layer.dropout,
+            spike_mode="binary",
+            window_size=4,
+            sparse_ratio=0.1,
+            node_id=f"{layer_name}_spike_attention"
+        )
+        
+        # Add output projection neuron
+        neuron_id = builder.add_spike_neuron(
+            attention_id,
+            neuron_model="LIF", 
+            threshold=0.8,
+            tau_mem=10.0,
+            node_id=f"{layer_name}_attention_neuron"
+        )
+        
+        return neuron_id
+        
+    def _parse_layer_norm(self, builder: SpikeIRBuilder, layer: nn.LayerNorm, input_id: str, layer_name: str) -> str:
+        """Parse LayerNorm layer - convert to adaptive threshold mechanism."""
+        # LayerNorm in spiking networks implemented as adaptive thresholding
+        neuron_id = builder.add_spike_neuron(
+            input_id,
+            neuron_model="AdaptiveLIF",
+            threshold=1.0,
+            tau_mem=15.0,  # Longer time constant for normalization
+            tau_syn=5.0,
+            adaptation_strength=0.1,
+            node_id=f"{layer_name}_layer_norm"
+        )
+        
+        return neuron_id
+        
+    def detect_transformer_blocks(self, model: nn.Module) -> list:
+        """Detect transformer blocks in the model architecture."""
+        transformer_blocks = []
+        
+        for name, module in model.named_modules():
+            # Look for common transformer block patterns
+            if any(pattern in name.lower() for pattern in ['transformer', 'block', 'layer']):
+                has_attention = any(isinstance(child, nn.MultiheadAttention) 
+                                  for child in module.children())
+                has_feedforward = any(isinstance(child, nn.Linear) 
+                                    for child in module.children())
+                has_norm = any(isinstance(child, nn.LayerNorm) 
+                              for child in module.children())
+                
+                if has_attention or (has_feedforward and has_norm):
+                    transformer_blocks.append({
+                        'name': name,
+                        'module': module,
+                        'has_attention': has_attention,
+                        'has_feedforward': has_feedforward,
+                        'has_norm': has_norm
+                    })
+                    
+        return transformer_blocks
+        
+    def parse_transformer_block(self, builder: SpikeIRBuilder, block_module: nn.Module, input_id: str, block_name: str) -> str:
+        """Parse a complete transformer block with residual connections."""
+        # Store input for residual connection
+        residual_input = input_id
+        current_id = input_id
+        
+        # Parse each component in the block
+        for name, layer in block_module.named_children():
+            layer_type = type(layer)
+            if layer_type in self.supported_layers:
+                current_id = self.supported_layers[layer_type](
+                    builder, layer, current_id, f"{block_name}_{name}"
+                )
+                
+        # Add residual connection
+        if current_id != residual_input:
+            residual_id = builder.add_residual_connection(
+                residual_input,
+                current_id,
+                node_id=f"{block_name}_residual"
+            )
+            return residual_id
+        else:
+            return current_id
         
     def extract_parameters(self, model: nn.Module) -> Dict[str, Any]:
         """Extract model parameters for analysis."""

@@ -19,6 +19,7 @@ class NodeType(Enum):
     SPIKE_DECODING = "spike_decoding"
     TEMPORAL_POOL = "temporal_pool"
     TIME_LOOP = "time_loop"
+    RESIDUAL = "residual"
 
 
 @dataclass

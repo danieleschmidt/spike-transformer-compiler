@@ -85,6 +85,7 @@ class SpikeIRBuilder:
         reset_mode: str = "zero",
         tau_mem: float = 10.0,
         tau_syn: float = 5.0,
+        adaptation_strength: float = 0.0,
         node_id: Optional[str] = None
     ) -> str:
         """Add spiking neuron layer."""
@@ -105,6 +106,7 @@ class SpikeIRBuilder:
                 "reset_mode": reset_mode,
                 "tau_mem": tau_mem,
                 "tau_syn": tau_syn,
+                "adaptation_strength": adaptation_strength,
                 "num_neurons": input_shape[-1] if input_shape else 1
             },
             metadata={"shape": input_shape}
@@ -233,6 +235,9 @@ class SpikeIRBuilder:
         embed_dim: int,
         num_heads: int = 8,
         dropout: float = 0.0,
+        spike_mode: str = "binary",
+        window_size: int = 4,
+        sparse_ratio: float = 0.1,
         node_id: Optional[str] = None
     ) -> str:
         """Add spike attention layer."""
@@ -251,6 +256,9 @@ class SpikeIRBuilder:
                 "embed_dim": embed_dim,
                 "num_heads": num_heads,
                 "dropout": dropout,
+                "spike_mode": spike_mode,
+                "window_size": window_size,
+                "sparse_ratio": sparse_ratio,
                 "sequence_length": input_shape[1] if len(input_shape) > 1 else 1
             },
             metadata={"shape": input_shape}
@@ -360,6 +368,53 @@ class SpikeIRBuilder:
             data_type=SpikeTensor(output_shape, SpikeType.BINARY)
         )
         self.graph.add_edge(data_edge)
+        
+        return node_id
+        
+    def add_residual_connection(
+        self,
+        input1_node: str,
+        input2_node: str,
+        node_id: Optional[str] = None
+    ) -> str:
+        """Add residual connection (element-wise addition)."""
+        if node_id is None:
+            node_id = self._generate_node_id("residual")
+            
+        input1_shape = self.graph.get_node(input1_node).metadata["shape"]
+        input2_shape = self.graph.get_node(input2_node).metadata["shape"]
+        
+        # Output shape should match inputs (broadcasting rules apply)
+        output_shape = input1_shape if len(input1_shape) >= len(input2_shape) else input2_shape
+        
+        node = SpikeNode(
+            id=node_id,
+            node_type=NodeType.RESIDUAL,
+            operation="residual_add",
+            inputs=[input1_node, input2_node],
+            outputs=[node_id],
+            parameters={
+                "operation": "add",
+                "broadcast": True
+            },
+            metadata={"shape": output_shape}
+        )
+        
+        self.graph.add_node(node)
+        
+        # Add data edges from both inputs
+        edge1 = SpikeEdge(
+            source=input1_node,
+            target=node_id,
+            data_type=SpikeTensor(input1_shape, SpikeType.BINARY)
+        )
+        edge2 = SpikeEdge(
+            source=input2_node,
+            target=node_id,
+            data_type=SpikeTensor(input2_shape, SpikeType.BINARY)
+        )
+        self.graph.add_edge(edge1)
+        self.graph.add_edge(edge2)
         
         return node_id
         
