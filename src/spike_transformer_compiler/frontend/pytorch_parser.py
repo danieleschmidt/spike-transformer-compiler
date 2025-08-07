@@ -15,16 +15,23 @@ class PyTorchParser:
         self.supported_layers = {
             nn.Linear: self._parse_linear,
             nn.Conv2d: self._parse_conv2d,
+            nn.Conv1d: self._parse_conv1d,
             nn.ReLU: self._parse_activation,
+            nn.GELU: self._parse_activation,
             nn.Sigmoid: self._parse_activation,
             nn.Tanh: self._parse_activation,
             nn.Dropout: self._parse_dropout,
+            nn.BatchNorm1d: self._parse_batchnorm,
             nn.BatchNorm2d: self._parse_batchnorm,
             nn.AdaptiveAvgPool2d: self._parse_pooling,
             nn.MaxPool2d: self._parse_pooling,
+            nn.AvgPool2d: self._parse_pooling,
+            nn.Flatten: self._parse_flatten,
             nn.MultiheadAttention: self._parse_multihead_attention,
             nn.LayerNorm: self._parse_layer_norm,
         }
+        self.layer_counter = 0
+        self.residual_stack = []
         
     def parse_model(self, model: nn.Module, input_shape: Tuple[int, ...], time_steps: int = 4) -> SpikeGraph:
         """Parse PyTorch model into Spike IR graph."""
@@ -111,6 +118,8 @@ class PyTorchParser:
         # Map activation to neuron parameters
         if activation_type == "ReLU":
             threshold = 0.5
+        elif activation_type == "GELU":
+            threshold = 0.6  # GELU has smoother activation curve
         elif activation_type == "Sigmoid":
             threshold = 0.7
         elif activation_type == "Tanh":
@@ -127,21 +136,57 @@ class PyTorchParser:
         
         return neuron_id
         
+    def _parse_conv1d(self, builder: SpikeIRBuilder, layer: nn.Conv1d, input_id: str, layer_name: str) -> str:
+        """Parse Conv1d layer."""
+        # Convert 1D conv to 2D equivalent for spike processing
+        conv_id = builder.add_spike_conv2d(
+            input_id,
+            out_channels=layer.out_channels,
+            kernel_size=layer.kernel_size[0],
+            stride=layer.stride[0],
+            padding=layer.padding[0],
+            bias=layer.bias is not None,
+            node_id=f"{layer_name}_conv1d"
+        )
+        
+        # Add spiking neuron after convolution
+        neuron_id = builder.add_spike_neuron(
+            conv_id,
+            neuron_model="LIF",
+            threshold=1.0,
+            node_id=f"{layer_name}_neuron"
+        )
+        
+        return neuron_id
+        
+    def _parse_flatten(self, builder: SpikeIRBuilder, layer: nn.Flatten, input_id: str, layer_name: str) -> str:
+        """Parse Flatten layer - reshape operation for spike data."""
+        # Flatten is handled at the IR level, pass through the input
+        # The actual reshaping will be done during backend compilation
+        return input_id
+        
     def _parse_dropout(self, builder: SpikeIRBuilder, layer: nn.Dropout, input_id: str, layer_name: str) -> str:
         """Parse Dropout layer - pass through in spiking context."""
         # In spiking networks, dropout can be implemented as probabilistic spike dropping
         # For now, we'll pass through the input unchanged
         return input_id
         
-    def _parse_batchnorm(self, builder: SpikeIRBuilder, layer: nn.BatchNorm2d, input_id: str, layer_name: str) -> str:
+    def _parse_batchnorm(self, builder: SpikeIRBuilder, layer: nn.Module, input_id: str, layer_name: str) -> str:
         """Parse BatchNorm layer - convert to adaptive threshold."""
         # BatchNorm in spiking networks can be implemented as adaptive thresholding
+        # Use different time constants based on BatchNorm type
+        if isinstance(layer, nn.BatchNorm1d):
+            tau_mem = 8.0
+        else:
+            tau_mem = 10.0
+            
         neuron_id = builder.add_spike_neuron(
             input_id,
             neuron_model="AdaptiveLIF",
             threshold=1.0,
-            tau_mem=10.0,
+            tau_mem=tau_mem,
             tau_syn=5.0,
+            adaptation_strength=0.05,
             node_id=f"{layer_name}_adaptive_neuron"
         )
         
@@ -154,7 +199,10 @@ class PyTorchParser:
             window_size = 2
         elif isinstance(layer, nn.MaxPool2d):
             method = "max"
-            window_size = layer.kernel_size
+            window_size = layer.kernel_size if isinstance(layer.kernel_size, int) else layer.kernel_size[0]
+        elif isinstance(layer, nn.AvgPool2d):
+            method = "avg"
+            window_size = layer.kernel_size if isinstance(layer.kernel_size, int) else layer.kernel_size[0]
         else:
             method = "sum"
             window_size = 2
