@@ -2,11 +2,11 @@
 
 from typing import Any, Dict, Optional, Union
 import torch.nn as nn
-
-
-class CompilationError(Exception):
-    """Exception raised when compilation fails."""
-    pass
+from .exceptions import (
+    CompilationError, ValidationError, ValidationUtils, ErrorContext, ErrorRecovery
+)
+from .logging_config import compiler_logger, HealthMonitor
+from .security import create_secure_environment
 
 
 class SpikeCompiler:
@@ -31,6 +31,14 @@ class SpikeCompiler:
         debug: bool = False,
         verbose: bool = False,
     ):
+        # Validate initialization parameters
+        from .backend.factory import BackendFactory
+        available_targets = BackendFactory.get_available_targets()
+        
+        ValidationUtils.validate_target(target, available_targets)
+        ValidationUtils.validate_optimization_level(optimization_level)
+        ValidationUtils.validate_time_steps(time_steps)
+        
         self.target = target
         self.optimization_level = optimization_level
         self.time_steps = time_steps
@@ -45,6 +53,7 @@ class SpikeCompiler:
         optimizer: Optional[Any] = None,
         resource_allocator: Optional[Any] = None,
         profile_energy: bool = False,
+        secure_mode: bool = True,
     ) -> "CompiledModel":
         """Compile a PyTorch model to target hardware.
         
@@ -55,6 +64,7 @@ class SpikeCompiler:
             optimizer: Optional optimization pipeline
             resource_allocator: Optional resource allocation strategy
             profile_energy: Enable energy profiling
+            secure_mode: Enable security checks and sanitization
             
         Returns:
             CompiledModel: Compiled model ready for deployment
@@ -62,6 +72,39 @@ class SpikeCompiler:
         Raises:
             CompilationError: If compilation fails
         """
+        # Set up secure compilation environment if requested
+        if secure_mode:
+            # Note: For live models, we can't sanitize file path, but we validate the model itself
+            from .security import get_security_config, InputSanitizer, GraphSanitizer
+            security_config = get_security_config()
+            input_sanitizer = InputSanitizer(security_config)
+            graph_sanitizer = GraphSanitizer(security_config)
+            
+            # Sanitize inputs
+            input_shape = input_sanitizer.sanitize_input_shape(input_shape)
+            target = input_sanitizer.sanitize_compilation_target(self.target)
+            self.target = target  # Update with sanitized value
+            
+        # Initialize monitoring and logging
+        health_monitor = HealthMonitor()
+        health_monitor.start_monitoring()
+        
+        metrics = compiler_logger.start_compilation(
+            target=self.target,
+            model_type=type(model).__name__,
+            input_shape=input_shape,
+            optimization_level=self.optimization_level
+        )
+        
+        # Comprehensive input validation
+        with ErrorContext("input_validation", target=self.target, 
+                         optimization_level=self.optimization_level):
+            ValidationUtils.validate_model(model)
+            ValidationUtils.validate_input_shape(input_shape)
+        
+        # Log model information
+        compiler_logger.log_model_info(model, input_shape)
+        
         from .frontend.pytorch_parser import PyTorchParser
         from .ir.builder import SpikeIRBuilder
         from .ir.passes import PassManager, DeadCodeElimination, SpikeFusion
@@ -69,44 +112,137 @@ class SpikeCompiler:
         
         if self.verbose:
             print(f"Compiling model for {self.target} target...")
+            print(f"Input shape: {input_shape}")
+            print(f"Optimization level: {self.optimization_level}")
+            print(f"Time steps: {self.time_steps}")
             
         try:
             # Stage 1: Frontend parsing
-            parser = PyTorchParser()
-            spike_graph = parser.parse_model(model, input_shape, self.time_steps)
+            with compiler_logger.time_operation("frontend_parsing"):
+                with ErrorContext("frontend_parsing", model_type=type(model).__name__):
+                    parser = PyTorchParser()
+                    spike_graph = parser.parse_model(model, input_shape, self.time_steps)
+                    
+                    # Security validation of generated graph
+                    if secure_mode:
+                        graph_sanitizer.validate_graph_size(spike_graph)
+                        for node in spike_graph.nodes:
+                            graph_sanitizer.validate_node_parameters(node)
+                    
+                    compiler_logger.log_compilation_stage(
+                        "Frontend Parsing",
+                        nodes=len(spike_graph.nodes),
+                        edges=len(spike_graph.edges),
+                        model_type=type(model).__name__
+                    )
+                    
+                    if self.verbose:
+                        print(f"✓ Frontend parsing: {len(spike_graph.nodes)} nodes, {len(spike_graph.edges)} edges")
             
-            if self.verbose:
-                print(f"Parsed model: {len(spike_graph.nodes)} nodes, {len(spike_graph.edges)} edges")
+            health_monitor.update_peak_memory()
             
             # Stage 2: Optimization passes
-            if optimizer is None:
-                optimizer = self.create_optimizer()
-                
-            optimized_graph = optimizer.run_all(spike_graph)
-            
-            if self.verbose:
-                print(f"Optimized model: {len(optimized_graph.nodes)} nodes")
-                
+            with compiler_logger.time_operation("optimization"):
+                with ErrorContext("optimization", optimization_level=self.optimization_level):
+                    if optimizer is None:
+                        optimizer = self.create_optimizer()
+                    
+                    # Log pre-optimization state
+                    pre_optimization = {
+                        'nodes': len(spike_graph.nodes),
+                        'edges': len(spike_graph.edges)
+                    }
+                    
+                    optimized_graph = optimizer.run_all(spike_graph)
+                    
+                    # Log optimization results
+                    post_optimization = {
+                        'nodes': len(optimized_graph.nodes),
+                        'edges': len(optimized_graph.edges)
+                    }
+                    
+                    compiler_logger.log_optimization_results(pre_optimization, post_optimization)
+                    compiler_logger.log_compilation_stage(
+                        "Optimization",
+                        optimization_level=self.optimization_level,
+                        nodes_before=pre_optimization['nodes'],
+                        nodes_after=post_optimization['nodes']
+                    )
+                    
+                    if self.verbose:
+                        print(f"✓ Optimization: {len(optimized_graph.nodes)} nodes")
+                        
+            health_monitor.update_peak_memory()
+                    
             # Stage 3: Backend code generation
-            backend = BackendFactory.create_backend(
-                self.target, 
-                chip_config=chip_config,
-                resource_allocator=resource_allocator
-            )
+            with compiler_logger.time_operation("backend_compilation"):
+                with ErrorContext("backend_compilation", target=self.target):
+                    backend = BackendFactory.create_backend(
+                        self.target, 
+                        chip_config=chip_config,
+                        resource_allocator=resource_allocator
+                    )
+                    
+                    compiled_model = backend.compile_graph(
+                        optimized_graph,
+                        profile_energy=profile_energy,
+                        debug=self.debug
+                    )
+                    
+                    # Log backend results
+                    compiler_logger.log_compilation_stage(
+                        "Backend Compilation",
+                        target=self.target,
+                        energy_per_inference=getattr(compiled_model, 'energy_per_inference', 0),
+                        utilization=getattr(compiled_model, 'utilization', 0)
+                    )
+                    
+                    if self.verbose:
+                        print("✓ Backend compilation completed successfully")
+                        if hasattr(compiled_model, 'energy_per_inference'):
+                            print(f"  Energy per inference: {compiled_model.energy_per_inference:.3f} nJ")
+                        if hasattr(compiled_model, 'utilization'):
+                            print(f"  Hardware utilization: {compiled_model.utilization:.1%}")
             
-            compiled_model = backend.compile_graph(
-                optimized_graph,
-                profile_energy=profile_energy,
-                debug=self.debug
-            )
+            # Log resource usage
+            memory_stats = health_monitor.get_memory_stats()
+            compiler_logger.log_resource_usage(**memory_stats)
             
-            if self.verbose:
-                print("Compilation completed successfully")
-                
+            # Mark compilation as successful
+            compiler_logger.end_compilation(success=True)
+            
             return compiled_model
             
+        except ValidationError as e:
+            # Log validation failure
+            compiler_logger.end_compilation(success=False, error=str(e))
+            
+            # Re-raise validation errors with additional context
+            suggestion = ErrorRecovery.suggest_fix_for_shape_error(input_shape, 'image_2d')
+            raise CompilationError(
+                f"Validation failed: {str(e)}\n{suggestion}",
+                error_code="VALIDATION_FAILED"
+            ) from e
+            
         except Exception as e:
-            raise CompilationError(f"Compilation failed: {str(e)}") from e
+            # Log compilation failure
+            compiler_logger.end_compilation(success=False, error=str(e))
+            
+            # Provide fallback suggestions for other errors
+            fallback_msg = ErrorRecovery.suggest_target_fallback(
+                self.target, BackendFactory.get_available_targets()
+            )
+            
+            raise CompilationError(
+                f"Compilation failed: {str(e)}\n{fallback_msg}",
+                error_code="COMPILATION_FAILED",
+                details={
+                    'target': self.target,
+                    'model_type': type(model).__name__,
+                    'input_shape': input_shape,
+                    'optimization_level': self.optimization_level
+                }
+            ) from e
         
     def create_optimizer(self) -> "PassManager":
         """Create optimization pipeline for the compiler."""
