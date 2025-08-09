@@ -33,6 +33,35 @@ class CompilerConfig:
     compilation_cache_enabled: bool = True
     cache_directory: str = "~/.spike_compiler_cache"
     
+    # Scaling and resource management
+    enable_auto_scaling: bool = True
+    resource_pool_enabled: bool = True
+    min_worker_processes: int = 2
+    max_worker_processes: int = 8
+    auto_scale_threshold_cpu: float = 75.0
+    auto_scale_threshold_memory: float = 80.0
+    scale_up_factor: float = 1.5
+    scale_down_factor: float = 0.8
+    scaling_cooldown_seconds: int = 60
+    
+    # Load balancing
+    load_balancing_strategy: str = "least_loaded"  # round_robin, least_loaded, weighted
+    task_queue_max_size: int = 1000
+    worker_health_check_interval: int = 30
+    failed_worker_retry_attempts: int = 3
+    
+    # Memory management
+    memory_pool_enabled: bool = True
+    memory_pool_max_size_gb: float = 4.0
+    memory_gc_threshold: float = 0.8
+    memory_defrag_threshold: float = 0.85
+    
+    # Predictive scaling
+    enable_predictive_scaling: bool = True
+    prediction_horizon_minutes: float = 5.0
+    prediction_confidence_threshold: float = 0.7
+    metrics_history_size: int = 1000
+    
     # Optimization settings
     optimization_passes: Dict[str, bool] = field(default_factory=lambda: {
         "dead_code_elimination": True,
@@ -54,6 +83,14 @@ class CompilerConfig:
     allow_unsafe_operations: bool = False
     model_verification_required: bool = True
     input_sanitization: bool = True
+    
+    # Advanced monitoring
+    enable_health_monitoring: bool = True
+    health_check_interval_seconds: int = 30
+    alert_on_resource_pressure: bool = True
+    export_metrics_enabled: bool = False
+    metrics_export_interval_seconds: int = 300
+    metrics_export_path: str = "/tmp/spike_compiler_metrics.json"
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
