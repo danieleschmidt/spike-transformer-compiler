@@ -58,6 +58,12 @@ class PredictiveScaler:
             'active_tasks': 0.2
         }
         
+        # Enhanced ML-driven features
+        self.workload_patterns = {}
+        self.seasonality_detector = WorkloadSeasonalityDetector()
+        self.anomaly_detector = SimpleAnomalyDetector()
+        self.multi_objective_optimizer = MultiObjectiveResourceOptimizer()
+        
     def add_metrics(self, metrics: ScalingMetrics) -> None:
         """Add metrics to history for learning."""
         self.metrics_history.append(metrics)
@@ -161,6 +167,150 @@ class PredictiveScaler:
         # Convert to confidence (lower error = higher confidence)
         confidence = max(0.1, min(1.0, 1.0 - mae / 100.0))
         return confidence
+
+
+class WorkloadSeasonalityDetector:
+    """Detects seasonal patterns in workload for predictive scaling."""
+    
+    def __init__(self):
+        self.hourly_patterns = defaultdict(list)
+        self.daily_patterns = defaultdict(list)
+        self.weekly_patterns = defaultdict(list)
+        
+    def add_observation(self, timestamp: float, workload_intensity: float) -> None:
+        """Add workload observation."""
+        dt = time.localtime(timestamp)
+        
+        self.hourly_patterns[dt.tm_hour].append(workload_intensity)
+        self.daily_patterns[dt.tm_mday].append(workload_intensity)
+        self.weekly_patterns[dt.tm_wday].append(workload_intensity)
+        
+    def predict_workload(self, future_timestamp: float) -> float:
+        """Predict workload intensity based on seasonal patterns."""
+        dt = time.localtime(future_timestamp)
+        
+        # Get historical patterns
+        hourly_avg = np.mean(self.hourly_patterns[dt.tm_hour]) if self.hourly_patterns[dt.tm_hour] else 50.0
+        daily_avg = np.mean(self.daily_patterns[dt.tm_mday]) if self.daily_patterns[dt.tm_mday] else 50.0
+        weekly_avg = np.mean(self.weekly_patterns[dt.tm_wday]) if self.weekly_patterns[dt.tm_wday] else 50.0
+        
+        # Weighted combination
+        return (hourly_avg * 0.5 + daily_avg * 0.3 + weekly_avg * 0.2)
+
+
+class SimpleAnomalyDetector:
+    """Simple statistical anomaly detector for resource usage."""
+    
+    def __init__(self, window_size: int = 50, threshold_sigma: float = 2.5):
+        self.window_size = window_size
+        self.threshold_sigma = threshold_sigma
+        self.recent_values = deque(maxlen=window_size)
+        
+    def add_value(self, value: float) -> None:
+        """Add new value to the detector."""
+        self.recent_values.append(value)
+        
+    def is_anomaly(self, value: float) -> Tuple[bool, float]:
+        """Check if value is anomalous. Returns (is_anomaly, severity)."""
+        if len(self.recent_values) < 10:
+            return False, 0.0
+            
+        mean_val = np.mean(self.recent_values)
+        std_val = np.std(self.recent_values)
+        
+        if std_val == 0:
+            return False, 0.0
+            
+        z_score = abs(value - mean_val) / std_val
+        is_anomaly = z_score > self.threshold_sigma
+        severity = min(1.0, z_score / (self.threshold_sigma * 2))
+        
+        return is_anomaly, severity
+
+
+class MultiObjectiveResourceOptimizer:
+    """Multi-objective optimizer balancing performance, cost, and energy."""
+    
+    def __init__(self):
+        self.objectives = {
+            'performance': {'weight': 0.4, 'target': 'maximize'},
+            'cost_efficiency': {'weight': 0.4, 'target': 'maximize'},
+            'energy_efficiency': {'weight': 0.2, 'target': 'maximize'}
+        }
+        
+    def optimize_resource_allocation(
+        self, 
+        current_allocation: Dict[str, int],
+        workload_demand: float,
+        constraints: Dict[str, Any]
+    ) -> Dict[str, int]:
+        """Optimize resource allocation across multiple objectives."""
+        
+        # Generate candidate allocations
+        candidates = self._generate_candidates(current_allocation, workload_demand, constraints)
+        
+        # Evaluate each candidate
+        best_candidate = current_allocation
+        best_score = -float('inf')
+        
+        for candidate in candidates:
+            score = self._evaluate_candidate(candidate, workload_demand)
+            if score > best_score:
+                best_score = score
+                best_candidate = candidate
+                
+        return best_candidate
+    
+    def _generate_candidates(
+        self, 
+        current: Dict[str, int], 
+        demand: float, 
+        constraints: Dict[str, Any]
+    ) -> List[Dict[str, int]]:
+        """Generate candidate resource allocations."""
+        candidates = [current.copy()]
+        
+        # Generate variations
+        for pool_name, current_size in current.items():
+            max_size = constraints.get(f'{pool_name}_max', current_size * 2)
+            min_size = constraints.get(f'{pool_name}_min', max(1, current_size // 2))
+            
+            # Conservative increase
+            if current_size < max_size:
+                candidate = current.copy()
+                candidate[pool_name] = min(max_size, int(current_size * 1.2))
+                candidates.append(candidate)
+                
+            # Conservative decrease
+            if current_size > min_size:
+                candidate = current.copy()
+                candidate[pool_name] = max(min_size, int(current_size * 0.8))
+                candidates.append(candidate)
+                
+        return candidates[:10]  # Limit candidates
+    
+    def _evaluate_candidate(self, candidate: Dict[str, int], demand: float) -> float:
+        """Evaluate candidate allocation using multi-objective scoring."""
+        total_resources = sum(candidate.values())
+        
+        # Performance score (ability to handle demand)
+        performance_score = min(1.0, total_resources / max(1.0, demand))
+        
+        # Cost efficiency (resources per unit capacity)
+        cost_efficiency = 1.0 / max(1.0, total_resources) if total_resources > 0 else 0.0
+        
+        # Energy efficiency (simplified model)
+        energy_efficiency = 1.0 - (total_resources * 0.01)  # Penalty for more resources
+        energy_efficiency = max(0.0, energy_efficiency)
+        
+        # Weighted combination
+        score = (
+            performance_score * self.objectives['performance']['weight'] +
+            cost_efficiency * self.objectives['cost_efficiency']['weight'] +
+            energy_efficiency * self.objectives['energy_efficiency']['weight']
+        )
+        
+        return score
 
 
 class AdvancedAutoScaler:
