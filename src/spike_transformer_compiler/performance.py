@@ -63,10 +63,264 @@ class CompilationCache:
             'disk_writes': 0
         }
         
+        # ML-driven intelligent caching features
+        self.access_predictor = CacheAccessPredictor()
+        self.eviction_optimizer = IntelligentEvictionPolicy()
+        self.prefetch_engine = PrefetchEngine()
+        self.cache_analytics = CacheAnalytics()
+        
         # Load existing cache metadata
         self._load_cache_metadata()
         
         compiler_logger.logger.info(f"Compilation cache initialized: {self.cache_dir}")
+
+
+class CacheAccessPredictor:
+    """ML-based predictor for cache access patterns."""
+    
+    def __init__(self, history_size: int = 10000):
+        self.access_history = []
+        self.history_size = history_size
+        self.feature_weights = {
+            'time_since_last_access': 0.3,
+            'access_frequency': 0.4,
+            'compilation_similarity': 0.3
+        }
+        
+    def record_access(self, cache_key: str, compilation_params: Dict[str, Any]) -> None:
+        """Record cache access for learning."""
+        access_record = {
+            'cache_key': cache_key,
+            'timestamp': time.time(),
+            'params': compilation_params
+        }
+        
+        self.access_history.append(access_record)
+        if len(self.access_history) > self.history_size:
+            self.access_history.pop(0)
+    
+    def predict_access_probability(self, cache_key: str, current_params: Dict[str, Any]) -> float:
+        """Predict probability of cache access."""
+        if not self.access_history:
+            return 0.5  # Default probability
+        
+        # Find similar compilation patterns
+        similar_accesses = self._find_similar_compilations(current_params)
+        
+        if not similar_accesses:
+            return 0.1  # Low probability for unseen patterns
+        
+        # Calculate features
+        recent_accesses = len([a for a in similar_accesses if time.time() - a['timestamp'] < 3600])  # Last hour
+        frequency_score = recent_accesses / len(similar_accesses)
+        
+        # Time decay
+        latest_access = max(similar_accesses, key=lambda x: x['timestamp'])
+        time_score = 1.0 / (1.0 + (time.time() - latest_access['timestamp']) / 3600)  # Hour-based decay
+        
+        # Weighted combination
+        probability = frequency_score * 0.6 + time_score * 0.4
+        return min(1.0, max(0.0, probability))
+    
+    def _find_similar_compilations(self, params: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Find similar compilation patterns."""
+        similar = []
+        
+        for record in self.access_history:
+            similarity = self._calculate_similarity(params, record['params'])
+            if similarity > 0.7:  # Threshold for similarity
+                similar.append(record)
+        
+        return similar
+    
+    def _calculate_similarity(self, params1: Dict[str, Any], params2: Dict[str, Any]) -> float:
+        """Calculate similarity between compilation parameters."""
+        # Simple similarity based on key parameters
+        key_params = ['optimization_level', 'target', 'input_shape']
+        
+        matches = 0
+        total = len(key_params)
+        
+        for key in key_params:
+            if params1.get(key) == params2.get(key):
+                matches += 1
+        
+        return matches / total if total > 0 else 0.0
+
+
+class IntelligentEvictionPolicy:
+    """Intelligent cache eviction policy using multiple factors."""
+    
+    def __init__(self):
+        self.eviction_weights = {
+            'access_frequency': 0.4,
+            'recency': 0.3,
+            'size_cost': 0.2,
+            'future_value': 0.1
+        }
+        
+    def select_eviction_candidates(
+        self, 
+        cache_entries: Dict[str, CacheEntry],
+        required_space: int
+    ) -> List[str]:
+        """Select cache entries for eviction."""
+        if not cache_entries:
+            return []
+        
+        # Score all entries
+        scored_entries = []
+        
+        for cache_key, entry in cache_entries.items():
+            score = self._calculate_eviction_score(entry)
+            scored_entries.append((cache_key, score, entry.size_bytes))
+        
+        # Sort by eviction score (higher score = more likely to evict)
+        scored_entries.sort(key=lambda x: x[1], reverse=True)
+        
+        # Select entries to evict
+        eviction_candidates = []
+        freed_space = 0
+        
+        for cache_key, score, size_bytes in scored_entries:
+            eviction_candidates.append(cache_key)
+            freed_space += size_bytes
+            
+            if freed_space >= required_space:
+                break
+        
+        return eviction_candidates
+    
+    def _calculate_eviction_score(self, entry: CacheEntry) -> float:
+        """Calculate eviction score (higher = more likely to evict)."""
+        current_time = time.time()
+        
+        # Recency score (older = higher eviction score)
+        time_since_access = current_time - entry.timestamp
+        recency_score = min(1.0, time_since_access / 3600)  # Normalize to 1 hour
+        
+        # Frequency score (less frequent = higher eviction score)
+        frequency_score = 1.0 / max(1, entry.access_count)
+        
+        # Size cost score (larger = higher eviction score for same value)
+        size_score = min(1.0, entry.size_bytes / (10 * 1024 * 1024))  # Normalize to 10MB
+        
+        # Future value score (expired = higher eviction score)
+        future_score = 1.0 if entry.is_expired() else 0.2
+        
+        # Weighted combination
+        total_score = (
+            recency_score * self.eviction_weights['recency'] +
+            frequency_score * self.eviction_weights['access_frequency'] +
+            size_score * self.eviction_weights['size_cost'] +
+            future_score * self.eviction_weights['future_value']
+        )
+        
+        return total_score
+
+
+class PrefetchEngine:
+    """Intelligent prefetching engine for compilation artifacts."""
+    
+    def __init__(self, max_prefetch_threads: int = 2):
+        self.max_prefetch_threads = max_prefetch_threads
+        self.prefetch_executor = ThreadPoolExecutor(max_workers=max_prefetch_threads)
+        self.prefetch_queue = []
+        self.prefetch_history = {}
+        
+    def suggest_prefetch(self, current_params: Dict[str, Any]) -> List[str]:
+        """Suggest cache keys to prefetch based on patterns."""
+        suggestions = []
+        
+        # Pattern 1: Sequential model sizes
+        if 'input_shape' in current_params:
+            shape = current_params['input_shape']
+            if isinstance(shape, tuple) and len(shape) >= 2:
+                # Suggest similar shapes with different batch sizes
+                for batch_size in [1, 4, 8, 16]:
+                    if batch_size != shape[0]:
+                        suggested_shape = (batch_size,) + shape[1:]
+                        suggestions.append(self._generate_cache_key({
+                            **current_params,
+                            'input_shape': suggested_shape
+                        }))
+        
+        # Pattern 2: Different optimization levels
+        current_opt = current_params.get('optimization_level', 2)
+        for opt_level in [0, 1, 2, 3]:
+            if opt_level != current_opt:
+                suggestions.append(self._generate_cache_key({
+                    **current_params,
+                    'optimization_level': opt_level
+                }))
+        
+        return suggestions[:5]  # Limit suggestions
+    
+    def _generate_cache_key(self, params: Dict[str, Any]) -> str:
+        """Generate cache key from parameters."""
+        import hashlib
+        key_str = json.dumps(params, sort_keys=True)
+        return hashlib.sha256(key_str.encode()).hexdigest()[:16]
+
+
+class CacheAnalytics:
+    """Analytics and optimization for cache performance."""
+    
+    def __init__(self):
+        self.performance_history = []
+        self.optimization_recommendations = []
+        
+    def analyze_cache_performance(self, cache_stats: Dict[str, Any]) -> Dict[str, Any]:
+        """Analyze cache performance and generate insights."""
+        hit_rate = cache_stats['hits'] / max(1, cache_stats['hits'] + cache_stats['misses'])
+        
+        analysis = {
+            'hit_rate': hit_rate,
+            'performance_grade': self._calculate_performance_grade(hit_rate),
+            'recommendations': []
+        }
+        
+        # Generate recommendations
+        if hit_rate < 0.6:
+            analysis['recommendations'].append(
+                "Consider increasing cache size or improving prefetching"
+            )
+        
+        if cache_stats['evictions'] > cache_stats['hits'] * 0.5:
+            analysis['recommendations'].append(
+                "High eviction rate detected - consider cache size tuning"
+            )
+        
+        return analysis
+    
+    def _calculate_performance_grade(self, hit_rate: float) -> str:
+        """Calculate performance grade based on hit rate."""
+        if hit_rate >= 0.9:
+            return "A+"
+        elif hit_rate >= 0.8:
+            return "A"
+        elif hit_rate >= 0.7:
+            return "B"
+        elif hit_rate >= 0.6:
+            return "C"
+        else:
+            return "D"
+    
+    def get_optimization_suggestions(self, usage_patterns: Dict[str, Any]) -> List[str]:
+        """Get optimization suggestions based on usage patterns."""
+        suggestions = []
+        
+        # Analyze memory usage patterns
+        if usage_patterns.get('memory_pressure', 0) > 0.8:
+            suggestions.append("Implement more aggressive eviction policy")
+            suggestions.append("Consider compression for large compilation artifacts")
+        
+        # Analyze access patterns
+        access_variance = usage_patterns.get('access_pattern_variance', 0)
+        if access_variance > 0.5:
+            suggestions.append("Implement adaptive prefetching based on usage patterns")
+        
+        return suggestions
     
     def _load_cache_metadata(self):
         """Load cache metadata from disk."""
