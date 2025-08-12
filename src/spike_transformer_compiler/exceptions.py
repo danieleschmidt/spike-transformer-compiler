@@ -169,7 +169,7 @@ class ValidationUtils:
                 error_code="NULL_MODEL"
             )
         
-        # Check if it's a PyTorch model
+        # Check if it's a PyTorch model (if torch is available)
         try:
             import torch.nn as nn
             if not isinstance(model, nn.Module):
@@ -179,8 +179,14 @@ class ValidationUtils:
                     details={'provided_type': type(model).__name__}
                 )
         except ImportError:
-            # If torch is not available, we can't validate the model type
-            pass
+            # If torch is not available, we can't validate the model type strictly
+            # But we can check if the model has the expected interface
+            if not (hasattr(model, 'named_modules') or hasattr(model, '__call__')):
+                raise ValidationError(
+                    "Model must have PyTorch-like interface (named_modules method)",
+                    error_code="INVALID_MODEL_INTERFACE",
+                    details={'provided_type': type(model).__name__}
+                )
     
     @staticmethod
     def validate_node_parameters(node_type: str, parameters: dict) -> None:

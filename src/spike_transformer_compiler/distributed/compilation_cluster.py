@@ -15,6 +15,7 @@ import weakref
 from ..logging_config import compiler_logger
 from ..performance import PerformanceProfiler
 from ..security import SecurityValidator
+from ..scaling import get_adaptive_scaler, get_load_balancer, ScalingStrategy
 
 
 class NodeStatus(Enum):

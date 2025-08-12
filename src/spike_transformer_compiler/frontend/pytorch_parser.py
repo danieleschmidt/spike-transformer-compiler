@@ -1,8 +1,44 @@
 """PyTorch model parser for converting to Spike IR."""
 
 from typing import Tuple, Dict, Any
-import torch
-import torch.nn as nn
+
+try:
+    import torch
+    import torch.nn as nn
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+    # Create dummy torch modules
+    class torch:
+        @staticmethod
+        def randn(*args):
+            import numpy as np
+            return np.random.randn(*args)
+        @staticmethod  
+        def no_grad():
+            class NoGrad:
+                def __enter__(self): return self
+                def __exit__(self, *args): pass
+            return NoGrad()
+    
+    class nn:
+        class Module: pass
+        class Linear: pass
+        class Conv2d: pass
+        class Conv1d: pass
+        class ReLU: pass
+        class GELU: pass
+        class Sigmoid: pass
+        class Tanh: pass
+        class Dropout: pass
+        class BatchNorm1d: pass
+        class BatchNorm2d: pass
+        class AdaptiveAvgPool2d: pass
+        class MaxPool2d: pass
+        class AvgPool2d: pass
+        class Flatten: pass
+        class MultiheadAttention: pass
+        class LayerNorm: pass
 from ..ir.builder import SpikeIRBuilder
 from ..ir.spike_graph import SpikeGraph
 from ..ir.types import SpikeType

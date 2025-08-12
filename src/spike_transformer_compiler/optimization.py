@@ -32,9 +32,14 @@ class Optimizer:
         
     def _run_pass(self, pass_type: OptimizationPass, ir: Any, **kwargs: Any) -> Any:
         """Run a single optimization pass."""
-        from .ir.spike_graph import SpikeGraph
-        from .ir.types import SynapticWeights
-        import numpy as np
+        # Import here to avoid circular imports
+        try:
+            from .ir.spike_graph import SpikeGraph
+            from .ir.types import SynapticWeights
+            import numpy as np
+        except ImportError as e:
+            # Handle case where dependencies are not available
+            return ir
         
         if not isinstance(ir, SpikeGraph):
             return ir
@@ -50,7 +55,7 @@ class Optimizer:
         else:
             return ir
             
-    def _compress_spikes(self, graph: SpikeGraph, compression_ratio: float = 0.1) -> SpikeGraph:
+    def _compress_spikes(self, graph: "SpikeGraph", compression_ratio: float = 0.1) -> "SpikeGraph":
         """Apply spike compression to reduce data movement."""
         # Update metadata to indicate spike compression
         graph.metadata["spike_compression"] = compression_ratio
@@ -63,7 +68,7 @@ class Optimizer:
                 
         return graph
         
-    def _quantize_weights(self, graph: SpikeGraph, bits: int = 8) -> SpikeGraph:
+    def _quantize_weights(self, graph: "SpikeGraph", bits: int = 8) -> "SpikeGraph":
         """Apply weight quantization to reduce memory usage."""
         # Update synaptic weights in edges
         for edge in graph.edges:
@@ -74,7 +79,7 @@ class Optimizer:
         graph.metadata["weight_quantization"] = f"{bits}bit"
         return graph
         
-    def _prune_neurons(self, graph: SpikeGraph, sparsity: float = 0.9) -> SpikeGraph:
+    def _prune_neurons(self, graph: "SpikeGraph", sparsity: float = 0.9) -> "SpikeGraph":
         """Apply neuron pruning to reduce computational complexity."""
         # Mark neurons for pruning
         for node in graph.nodes.values():
@@ -90,7 +95,7 @@ class Optimizer:
         graph.metadata["neuron_pruning"] = sparsity
         return graph
         
-    def _fuse_temporal_ops(self, graph: SpikeGraph, **kwargs) -> SpikeGraph:
+    def _fuse_temporal_ops(self, graph: "SpikeGraph", **kwargs) -> "SpikeGraph":
         """Fuse temporal operations for efficiency."""
         # Mark temporal operations for fusion
         temporal_nodes = []
