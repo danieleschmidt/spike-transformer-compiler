@@ -332,5 +332,27 @@ class HealthMonitor:
         return stats
 
 
+    def stop_monitoring(self):
+        """Stop resource monitoring."""
+        # Cleanup monitoring resources if needed
+        pass
+    
+    def log_performance_metrics(self, perf_stats: dict):
+        """Log performance metrics."""
+        self.logger.logger.info("Performance metrics:")
+        for metric, value in perf_stats.items():
+            self.logger.logger.info(f"  {metric}: {value}")
+    
+    def log_resource_summary(self, resource_stats: dict):
+        """Log resource summary."""
+        self.logger.logger.info("Resource summary:")
+        for resource, value in resource_stats.items():
+            self.logger.logger.info(f"  {resource}: {value}")
+    
+    def get_timestamp(self) -> str:
+        """Get formatted timestamp."""
+        return datetime.now().isoformat()
+
+
 # Global logger instance
 compiler_logger = CompilerLogger()

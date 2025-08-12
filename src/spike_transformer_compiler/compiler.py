@@ -1,13 +1,24 @@
 """Main compiler interface for Spike-Transformer-Compiler."""
 
 from typing import Any, Dict, Optional, Union
-import torch.nn as nn
+
+try:
+    import torch.nn as nn
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+    # Create a dummy nn module for when torch is not available
+    class nn:
+        class Module:
+            pass
 from .exceptions import (
     CompilationError, ValidationError, ValidationUtils, ErrorContext, ErrorRecovery
 )
 from .logging_config import compiler_logger, HealthMonitor
 from .security import create_secure_environment, SecurityValidator
 from .performance import PerformanceProfiler, ResourceMonitor
+from .resilience import get_resilient_manager, with_retry, circuit_protected
+from .monitoring import get_compilation_monitor, CompilationTracking
 
 
 class SpikeCompiler:
@@ -46,6 +57,7 @@ class SpikeCompiler:
         self.debug = debug
         self.verbose = verbose
         
+    @with_retry()
     def compile(
         self,
         model: nn.Module,
@@ -55,6 +67,7 @@ class SpikeCompiler:
         resource_allocator: Optional[Any] = None,
         profile_energy: bool = False,
         secure_mode: bool = True,
+        enable_resilience: bool = True,
     ) -> "CompiledModel":
         """Compile a PyTorch model to target hardware.
         
@@ -73,6 +86,30 @@ class SpikeCompiler:
         Raises:
             CompilationError: If compilation fails
         """
+        # Generate model hash for tracking
+        model_hash = self._get_model_hash(model)
+        
+        # Set up resilience tracking
+        if enable_resilience:
+            resilient_manager = get_resilient_manager()
+            compilation_monitor = get_compilation_monitor()
+            
+            # Use resilient compilation if requested
+            try:
+                with CompilationTracking(model_hash, self.target):
+                    return resilient_manager.compile_with_resilience(
+                        self, model, input_shape, 
+                        chip_config=chip_config,
+                        optimizer=optimizer,
+                        resource_allocator=resource_allocator,
+                        profile_energy=profile_energy,
+                        secure_mode=secure_mode,
+                        enable_resilience=False  # Prevent recursion
+                    )
+            except Exception as e:
+                compiler_logger.logger.error(f"Resilient compilation failed: {e}")
+                # Fall through to normal compilation as last resort
+        
         # Set up secure compilation environment if requested
         if secure_mode:
             # Note: For live models, we can't sanitize file path, but we validate the model itself
@@ -381,3 +418,20 @@ class CompiledModel:
             print("=" * 50)
         else:
             print("Debug tracing not available for this backend")
+
+    def _get_model_hash(self, model: Any) -> str:
+        """Generate hash for model identification."""
+        try:
+            if hasattr(model, 'state_dict') and hasattr(model.state_dict, '__call__'):
+                # PyTorch model - use state dict for hashing
+                import hashlib
+                model_str = str(sorted(model.state_dict().items(), key=lambda x: x[0]))
+                return hashlib.sha256(model_str.encode()).hexdigest()[:16]
+            else:
+                # Fallback: use string representation
+                import hashlib
+                model_str = str(model)
+                return hashlib.sha256(model_str.encode()).hexdigest()[:16]
+        except Exception:
+            # Last resort: use object id
+            return f"model_{id(model)}"

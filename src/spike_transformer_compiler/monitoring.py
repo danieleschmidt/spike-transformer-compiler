@@ -1,163 +1,199 @@
-"""Monitoring and observability utilities for Spike-Transformer-Compiler."""
+"""Advanced monitoring and health check system."""
 
 import time
-import functools
-from typing import Dict, Any, Optional
-import logging
+import threading
+from typing import Any, Dict, List, Optional, Callable, Union
+from dataclasses import dataclass, field
+from enum import Enum
+from collections import deque, defaultdict
+import json
+from pathlib import Path
 
-# Placeholder for prometheus_client (would be installed in production)
-try:
-    from prometheus_client import Counter, Histogram, Gauge, start_http_server
-    PROMETHEUS_AVAILABLE = True
-except ImportError:
-    # Fallback implementations for development
-    PROMETHEUS_AVAILABLE = False
+from .logging_config import compiler_logger
+from .exceptions import ConfigurationError
+
+
+class HealthStatus(Enum):
+    """Health status levels."""
+    HEALTHY = "healthy"
+    WARNING = "warning" 
+    CRITICAL = "critical"
+    DOWN = "down"
+
+
+@dataclass
+class Metric:
+    """Individual metric data point."""
+    name: str
+    value: Union[int, float]
+    timestamp: float
+    tags: Dict[str, str] = field(default_factory=dict)
+
+
+class MetricsCollector:
+    """Collect and store performance metrics."""
     
-    class Counter:
-        def __init__(self, *args, **kwargs):
-            pass
-        def inc(self, *args, **kwargs):
-            pass
+    def __init__(self, max_points_per_metric: int = 1000):
+        self.metrics: Dict[str, deque] = defaultdict(lambda: deque(maxlen=max_points_per_metric))
+        self.counters: Dict[str, int] = defaultdict(int)
+        self.gauges: Dict[str, float] = defaultdict(float)
+        self._lock = threading.Lock()
     
-    class Histogram:
-        def __init__(self, *args, **kwargs):
-            pass
-        def time(self):
-            return self
-        def __enter__(self):
-            return self
-        def __exit__(self, *args):
-            pass
+    def record_counter(self, name: str, value: int = 1, tags: Optional[Dict[str, str]] = None):
+        """Record counter metric."""
+        with self._lock:
+            self.counters[name] += value
+            self._add_metric_point(name, self.counters[name], tags or {})
     
-    class Gauge:
-        def __init__(self, *args, **kwargs):
-            pass
-        def set(self, *args, **kwargs):
-            pass
+    def record_gauge(self, name: str, value: float, tags: Optional[Dict[str, str]] = None):
+        """Record gauge metric."""
+        with self._lock:
+            self.gauges[name] = value
+            self._add_metric_point(name, value, tags or {})
     
-    def start_http_server(port):
-        pass
-
-
-# Prometheus metrics
-COMPILATION_COUNTER = Counter(
-    'compilation_requests_total',
-    'Total number of compilation requests',
-    ['target', 'model_type', 'status']
-)
-
-COMPILATION_TIME = Histogram(
-    'compilation_time_seconds',
-    'Time spent compiling models',
-    ['target', 'model_type']
-)
-
-MEMORY_USAGE = Gauge(
-    'memory_usage_bytes',
-    'Memory usage during compilation',
-    ['phase']
-)
-
-ENERGY_PER_INFERENCE = Gauge(
-    'energy_per_inference_mj',
-    'Energy consumption per inference in millijoules',
-    ['model_name', 'target']
-)
-
-LOIHI_UTILIZATION = Gauge(
-    'loihi_chip_utilization_percent',
-    'Loihi chip utilization percentage',
-    ['chip_id']
-)
-
-SPIKE_RATE = Gauge(
-    'spike_rate_hz',
-    'Spike rate in Hz',
-    ['layer', 'model']
-)
-
-ACCURACY_METRIC = Gauge(
-    'accuracy_percent',
-    'Model accuracy percentage',
-    ['model_name', 'dataset']
-)
+    def record_timing(self, name: str, duration_ms: float, tags: Optional[Dict[str, str]] = None):
+        """Record timing metric."""
+        with self._lock:
+            self._add_metric_point(f"{name}_duration_ms", duration_ms, tags or {})
+    
+    def _add_metric_point(self, name: str, value: Union[int, float], tags: Dict[str, str]):
+        """Add metric point to time series."""
+        metric = Metric(
+            name=name,
+            value=value,
+            timestamp=time.time(),
+            tags=tags
+        )
+        self.metrics[name].append(metric)
+    
+    def get_metric_summary(self, name: str) -> Dict[str, Any]:
+        """Get summary statistics for a metric."""
+        if name not in self.metrics:
+            return {'error': f'Metric {name} not found'}
+        
+        points = list(self.metrics[name])
+        if not points:
+            return {'error': 'No data points'}
+        
+        values = [p.value for p in points]
+        
+        return {
+            'name': name,
+            'count': len(values),
+            'min': min(values),
+            'max': max(values),
+            'mean': sum(values) / len(values),
+            'latest': values[-1],
+            'latest_timestamp': points[-1].timestamp,
+        }
+    
+    def get_all_metrics(self) -> Dict[str, Any]:
+        """Get all metric summaries."""
+        return {name: self.get_metric_summary(name) for name in self.metrics.keys()}
 
 
 class CompilationMonitor:
-    """Monitor compilation process with metrics and logging."""
+    """Monitor compilation metrics and health."""
     
-    def __init__(self, logger: Optional[logging.Logger] = None):
-        self.logger = logger or logging.getLogger(__name__)
+    def __init__(self):
+        self.metrics = MetricsCollector()
+        self.compilation_stats = {
+            'total_compilations': 0,
+            'successful_compilations': 0,
+            'failed_compilations': 0,
+        }
+        self._stats_lock = threading.Lock()
+    
+    def record_compilation_start(self, model_hash: str, target: str):
+        """Record start of compilation."""
+        self.metrics.record_counter('compilations_started_total')
+        return time.time()
+    
+    def record_compilation_success(self, model_hash: str, target: str, start_time: float):
+        """Record successful compilation."""
+        duration_ms = (time.time() - start_time) * 1000
+        self.metrics.record_counter('compilations_successful_total')
+        self.metrics.record_timing('compilation_duration', duration_ms)
+        
+        with self._stats_lock:
+            self.compilation_stats['total_compilations'] += 1
+            self.compilation_stats['successful_compilations'] += 1
+    
+    def record_compilation_failure(self, model_hash: str, target: str, start_time: float, error: Exception):
+        """Record failed compilation."""
+        duration_ms = (time.time() - start_time) * 1000
+        self.metrics.record_counter('compilations_failed_total') 
+        self.metrics.record_timing('compilation_duration', duration_ms)
+        
+        with self._stats_lock:
+            self.compilation_stats['total_compilations'] += 1
+            self.compilation_stats['failed_compilations'] += 1
+    
+    def get_compilation_stats(self) -> Dict[str, Any]:
+        """Get compilation statistics."""
+        with self._stats_lock:
+            stats = self.compilation_stats.copy()
+        
+        total = stats['total_compilations']
+        if total > 0:
+            stats['success_rate'] = stats['successful_compilations'] / total
+        else:
+            stats['success_rate'] = 0.0
+        
+        return stats
+    
+    def get_health_status(self) -> HealthStatus:
+        """Get overall system health status."""
+        stats = self.get_compilation_stats()
+        
+        if stats['total_compilations'] == 0:
+            return HealthStatus.HEALTHY
+        
+        success_rate = stats['success_rate']
+        if success_rate >= 0.95:
+            return HealthStatus.HEALTHY
+        elif success_rate >= 0.8:
+            return HealthStatus.WARNING
+        else:
+            return HealthStatus.CRITICAL
+    
+    def get_comprehensive_report(self) -> Dict[str, Any]:
+        """Get comprehensive monitoring report."""
+        return {
+            'compilation_stats': self.get_compilation_stats(),
+            'health_status': self.get_health_status().value,
+            'metrics': self.metrics.get_all_metrics(),
+            'timestamp': time.time()
+        }
+
+
+# Global monitoring instance
+_compilation_monitor: Optional[CompilationMonitor] = None
+
+
+def get_compilation_monitor() -> CompilationMonitor:
+    """Get global compilation monitor."""
+    global _compilation_monitor
+    if _compilation_monitor is None:
+        _compilation_monitor = CompilationMonitor()
+    return _compilation_monitor
+
+
+class CompilationTracking:
+    """Context manager for tracking compilation metrics."""
+    
+    def __init__(self, model_hash: str, target: str):
+        self.model_hash = model_hash
+        self.target = target
         self.start_time = None
-        
-    def start_compilation(self, target: str, model_type: str):
-        """Mark the start of compilation."""
-        self.start_time = time.time()
-        self.logger.info(f"Starting compilation: target={target}, model_type={model_type}")
-        
-    def end_compilation(self, target: str, model_type: str, status: str = "success"):
-        """Mark the end of compilation and record metrics."""
-        if self.start_time:
-            duration = time.time() - self.start_time
-            COMPILATION_TIME.labels(target=target, model_type=model_type).observe(duration)
-            self.logger.info(f"Compilation completed: duration={duration:.2f}s, status={status}")
-        
-        COMPILATION_COUNTER.labels(target=target, model_type=model_type, status=status).inc()
-        
-    def record_memory_usage(self, phase: str, memory_bytes: int):
-        """Record memory usage for a specific compilation phase."""
-        MEMORY_USAGE.labels(phase=phase).set(memory_bytes)
-        self.logger.debug(f"Memory usage in {phase}: {memory_bytes / 1024 / 1024:.1f} MB")
-        
-    def record_energy_efficiency(self, model_name: str, target: str, energy_mj: float):
-        """Record energy efficiency metrics."""
-        ENERGY_PER_INFERENCE.labels(model_name=model_name, target=target).set(energy_mj)
-        self.logger.info(f"Energy efficiency: {model_name} on {target} = {energy_mj:.3f} mJ/inference")
-        
-    def record_hardware_utilization(self, chip_id: str, utilization_percent: float):
-        """Record hardware utilization metrics."""
-        LOIHI_UTILIZATION.labels(chip_id=chip_id).set(utilization_percent)
-        self.logger.debug(f"Chip {chip_id} utilization: {utilization_percent:.1f}%")
-        
-    def record_spike_metrics(self, layer: str, model: str, spike_rate_hz: float):
-        """Record spike-related metrics."""
-        SPIKE_RATE.labels(layer=layer, model=model).set(spike_rate_hz)
-        self.logger.debug(f"Spike rate in {layer} of {model}: {spike_rate_hz:.1f} Hz")
-        
-    def record_accuracy(self, model_name: str, dataset: str, accuracy_percent: float):
-        """Record model accuracy metrics."""
-        ACCURACY_METRIC.labels(model_name=model_name, dataset=dataset).set(accuracy_percent)
-        self.logger.info(f"Model accuracy: {model_name} on {dataset} = {accuracy_percent:.2f}%")
-
-
-def monitor_compilation(target: str = "unknown", model_type: str = "unknown"):
-    """Decorator to monitor compilation functions."""
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            monitor = CompilationMonitor()
-            monitor.start_compilation(target, model_type)
-            
-            try:
-                result = func(*args, **kwargs)
-                monitor.end_compilation(target, model_type, "success")
-                return result
-            except Exception as e:
-                monitor.end_compilation(target, model_type, "failure")
-                raise
-                
-        return wrapper
-    return decorator
-
-
-def start_metrics_server(port: int = 8000):
-    """Start Prometheus metrics server."""
-    if PROMETHEUS_AVAILABLE:
-        start_http_server(port)
-        logging.getLogger(__name__).info(f"Metrics server started on port {port}")
-    else:
-        logging.getLogger(__name__).warning("Prometheus client not available, metrics disabled")
-
-
-# Global monitor instance
-global_monitor = CompilationMonitor()
+        self.monitor = get_compilation_monitor()
+    
+    def __enter__(self):
+        self.start_time = self.monitor.record_compilation_start(self.model_hash, self.target)
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is None:
+            self.monitor.record_compilation_success(self.model_hash, self.target, self.start_time)
+        else:
+            self.monitor.record_compilation_failure(self.model_hash, self.target, self.start_time, exc_val)

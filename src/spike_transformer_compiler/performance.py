@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_compl
 import weakref
 import gc
 from functools import wraps, lru_cache
+from contextlib import contextmanager
 
 from .config import get_compiler_config
 from .logging_config import compiler_logger
@@ -48,6 +49,15 @@ class CompilationCache:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         
         self.max_size_bytes = int(max_size_mb * 1024 * 1024)
+        
+        # In-memory cache
+        self._memory_cache: Dict[str, CacheEntry] = {}
+        self._cache_lock = threading.Lock()
+        
+        # Performance tracking
+        self.hit_count = 0
+        self.miss_count = 0
+        self.eviction_count = 0
         self.current_size_bytes = 0
         
         # In-memory cache for frequently accessed items
@@ -837,3 +847,103 @@ def memory_optimized(func):
             gc.collect()
     
     return wrapper
+
+
+class PerformanceProfiler:
+    """Profile performance during compilation."""
+    
+    def __init__(self):
+        self.stage_times = {}
+        self.start_times = {}
+        self.compilation_start = None
+        self.compilation_end = None
+        
+    def start_compilation_profiling(self):
+        """Start profiling compilation."""
+        self.compilation_start = time.time()
+        self.stage_times.clear()
+        self.start_times.clear()
+        
+    def end_compilation_profiling(self, failed: bool = False):
+        """End compilation profiling."""
+        self.compilation_end = time.time()
+        if failed:
+            compiler_logger.logger.warning("Compilation profiling ended due to failure")
+        
+    @contextmanager
+    def profile_stage(self, stage_name: str):
+        """Context manager for profiling compilation stages."""
+        start_time = time.time()
+        try:
+            yield
+        finally:
+            end_time = time.time()
+            self.stage_times[stage_name] = end_time - start_time
+            
+    def get_compilation_stats(self) -> Dict[str, Any]:
+        """Get compilation performance statistics."""
+        total_time = 0
+        if self.compilation_start and self.compilation_end:
+            total_time = self.compilation_end - self.compilation_start
+            
+        return {
+            'total_compilation_time': total_time,
+            'stage_times': self.stage_times.copy(),
+            'throughput_nodes_per_sec': 0,  # Could be calculated if node count available
+        }
+        
+    def cleanup(self):
+        """Clean up profiler resources."""
+        self.stage_times.clear()
+        self.start_times.clear()
+
+
+class ResourceMonitor:
+    """Monitor system resources during compilation."""
+    
+    def __init__(self):
+        self.memory_snapshots = []
+        self.cpu_snapshots = []
+        self.start_memory = None
+        self.peak_memory = 0
+        
+    def log_memory_usage(self, label: str):
+        """Log current memory usage."""
+        try:
+            import psutil
+            process = psutil.Process()
+            memory_mb = process.memory_info().rss / (1024 * 1024)
+            
+            self.memory_snapshots.append((label, memory_mb, time.time()))
+            self.peak_memory = max(self.peak_memory, memory_mb)
+            
+            if self.start_memory is None:
+                self.start_memory = memory_mb
+                
+        except ImportError:
+            compiler_logger.logger.warning("psutil not available for memory monitoring")
+            
+    def log_compilation_failure(self, failure_type: str):
+        """Log compilation failure for analysis."""
+        compiler_logger.logger.error(f"Compilation failure: {failure_type}")
+        
+    def get_resource_summary(self) -> Dict[str, Any]:
+        """Get resource usage summary."""
+        if not self.memory_snapshots:
+            return {'memory_tracking': 'unavailable'}
+            
+        current_memory = self.memory_snapshots[-1][1] if self.memory_snapshots else 0
+        memory_increase = current_memory - (self.start_memory or 0)
+        
+        return {
+            'start_memory_mb': self.start_memory or 0,
+            'current_memory_mb': current_memory,
+            'peak_memory_mb': self.peak_memory,
+            'memory_increase_mb': memory_increase,
+            'memory_snapshots': len(self.memory_snapshots)
+        }
+        
+    def cleanup(self):
+        """Clean up monitoring resources."""
+        self.memory_snapshots.clear()
+        self.cpu_snapshots.clear()

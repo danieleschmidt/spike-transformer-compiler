@@ -415,3 +415,104 @@ def validate_hardware_target(target: str) -> bool:
         compiler_logger.logger.info(f"Hardware verification required for target: {target}")
     
     return True
+
+
+class SecurityValidator:
+    """Comprehensive security validation for compilation pipeline."""
+    
+    def __init__(self):
+        self.config = get_security_config()
+        self.model_sanitizer = ModelSanitizer(self.config)
+        self.input_sanitizer = InputSanitizer(self.config)
+        self.graph_sanitizer = GraphSanitizer(self.config)
+        self.security_incidents = []
+    
+    def validate_model_security(self, model) -> None:
+        """Validate model security."""
+        try:
+            # Check for suspicious model attributes
+            if hasattr(model, '__dict__'):
+                for attr_name, attr_value in model.__dict__.items():
+                    if callable(attr_value) and attr_name.startswith('_'):
+                        compiler_logger.logger.warning(f"Suspicious private method in model: {attr_name}")
+        except Exception as e:
+            compiler_logger.logger.warning(f"Could not validate model security: {e}")
+    
+    def validate_input_safety(self, input_shape: tuple) -> None:
+        """Validate input safety."""
+        self.input_sanitizer.sanitize_input_shape(input_shape)
+    
+    def validate_graph_size(self, graph) -> None:
+        """Validate graph size constraints."""
+        self.graph_sanitizer.validate_graph_size(graph)
+    
+    def validate_graph_complexity(self, graph) -> None:
+        """Validate graph complexity."""
+        # Additional complexity checks
+        if hasattr(graph, 'analyze_resources'):
+            resources = graph.analyze_resources()
+            if resources.get('total_computation_ops', 0) > 1e12:
+                compiler_logger.logger.warning("Very high computational complexity detected")
+    
+    def validate_memory_requirements(self, graph) -> None:
+        """Validate memory requirements are reasonable."""
+        if hasattr(graph, 'analyze_resources'):
+            resources = graph.analyze_resources()
+            memory_gb = resources.get('total_memory_bytes', 0) / (1024**3)
+            if memory_gb > 100:  # 100GB limit
+                raise ValidationError(
+                    f"Excessive memory requirement: {memory_gb:.1f}GB",
+                    error_code="EXCESSIVE_MEMORY"
+                )
+    
+    def validate_node_parameters(self, node) -> None:
+        """Validate node parameters."""
+        self.graph_sanitizer.validate_node_parameters(node)
+    
+    def check_node_security_constraints(self, node) -> None:
+        """Check node-specific security constraints."""
+        # Additional node security checks can be added here
+        pass
+    
+    def validate_optimization_safety(self, optimizer) -> None:
+        """Validate optimization pipeline safety."""
+        if hasattr(optimizer, 'passes'):
+            if len(optimizer.passes) > 100:
+                compiler_logger.logger.warning("Very long optimization pipeline detected")
+    
+    def validate_backend_config(self, backend, target: str) -> None:
+        """Validate backend configuration."""
+        if not validate_hardware_target(target):
+            raise ValidationError(
+                f"Hardware target not allowed or unavailable: {target}",
+                error_code="INVALID_HARDWARE_TARGET"
+            )
+    
+    def validate_compiled_model_safety(self, compiled_model) -> None:
+        """Validate compiled model safety."""
+        if hasattr(compiled_model, 'energy_per_inference'):
+            if compiled_model.energy_per_inference > 1000:  # 1000 nJ limit
+                compiler_logger.logger.warning(f"High energy consumption: {compiled_model.energy_per_inference} nJ")
+    
+    def log_security_incident(self, incident_type: str, details: str) -> None:
+        """Log security incident."""
+        incident = {
+            'type': incident_type,
+            'details': details,
+            'timestamp': compiler_logger.get_timestamp()
+        }
+        self.security_incidents.append(incident)
+        compiler_logger.logger.error(f"Security incident: {incident_type} - {details}")
+    
+    def get_security_report(self) -> Dict[str, Any]:
+        """Generate security validation report."""
+        return {
+            'total_incidents': len(self.security_incidents),
+            'incidents': self.security_incidents,
+            'config': {
+                'max_model_size_mb': self.config.max_model_size_mb,
+                'allowed_targets': self.config.allowed_targets,
+                'max_nodes': self.config.max_nodes,
+                'max_edges': self.config.max_edges
+            }
+        }

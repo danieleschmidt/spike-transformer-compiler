@@ -2,8 +2,13 @@
 
 import os
 import json
-import yaml
 from typing import Any, Dict, Optional, Union, List
+
+try:
+    import yaml
+    YAML_AVAILABLE = True
+except ImportError:
+    YAML_AVAILABLE = False
 from pathlib import Path
 from dataclasses import dataclass, field, asdict
 from .exceptions import ConfigurationError
@@ -277,6 +282,11 @@ class ConfigurationManager:
         """Load configuration from a specific file."""
         with open(config_path, 'r') as f:
             if config_path.suffix.lower() in ['.yaml', '.yml']:
+                if not YAML_AVAILABLE:
+                    raise ConfigurationError(
+                        "YAML support not available. Install pyyaml or use JSON format.",
+                        error_code="YAML_NOT_AVAILABLE"
+                    )
                 config_data = yaml.safe_load(f)
             elif config_path.suffix.lower() == '.json':
                 config_data = json.load(f)
@@ -349,6 +359,11 @@ class ConfigurationManager:
         
         with open(config_path, 'w') as f:
             if format.lower() in ['yaml', 'yml']:
+                if not YAML_AVAILABLE:
+                    raise ConfigurationError(
+                        "YAML support not available. Install pyyaml or use JSON format.",
+                        error_code="YAML_NOT_AVAILABLE"
+                    )
                 yaml.dump(config_data, f, default_flow_style=False, indent=2)
             elif format.lower() == 'json':
                 json.dump(config_data, f, indent=2)
@@ -489,6 +504,11 @@ def create_example_config(config_path: Union[str, Path]):
     
     with open(path, 'w') as f:
         if path.suffix.lower() in ['.yaml', '.yml']:
+            if not YAML_AVAILABLE:
+                raise ConfigurationError(
+                    "YAML support not available. Install pyyaml or use JSON format.",
+                    error_code="YAML_NOT_AVAILABLE"
+                )
             yaml.dump(EXAMPLE_CONFIG, f, default_flow_style=False, indent=2)
         else:
             json.dump(EXAMPLE_CONFIG, f, indent=2)
