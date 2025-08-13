@@ -1,7 +1,69 @@
 """Simulation backend for testing compiled models."""
 
 from typing import Any, Dict, List, Optional
-import numpy as np
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+    NdArray = np.ndarray
+except ImportError:
+    NUMPY_AVAILABLE = False
+    NdArray = list  # Use list as fallback type
+    
+    # Mock numpy for basic functionality
+    class np:
+        @staticmethod
+        def zeros(shape):
+            if isinstance(shape, tuple):
+                size = 1
+                for dim in shape:
+                    size *= dim
+                return [0.0] * size
+            return [0.0] * shape
+        
+        @staticmethod
+        def array(data):
+            return data if isinstance(data, list) else [data]
+        
+        @staticmethod
+        def random():
+            class Random:
+                @staticmethod
+                def random(shape=None):
+                    import random
+                    if shape is None:
+                        return random.random()
+                    if isinstance(shape, tuple):
+                        size = 1
+                        for dim in shape:
+                            size *= dim
+                        return [random.random() for _ in range(size)]
+                    return [random.random() for _ in range(shape)]
+            return Random()
+        
+        @staticmethod
+        def sum(arr, axis=None):
+            if isinstance(arr, list):
+                return sum(arr)
+            return 0
+        
+        @staticmethod
+        def exp(x):
+            import math
+            if isinstance(x, (list, tuple)):
+                return [math.exp(xi) for xi in x]
+            return math.exp(x)
+        
+        @staticmethod
+        def clip(arr, min_val, max_val):
+            if isinstance(arr, (list, tuple)):
+                return [max(min_val, min(max_val, x)) for x in arr]
+            return max(min_val, min(max_val, arr))
+        
+        @staticmethod
+        def full_like(arr, value):
+            if isinstance(arr, (list, tuple)):
+                return [value] * len(arr)
+            return [value]
 import time
 from ..ir.spike_graph import SpikeGraph, NodeType
 from ..compiler import CompiledModel
@@ -71,8 +133,11 @@ class SimulationExecutor:
                       if node.node_type == NodeType.INPUT]
         if input_nodes:
             input_id = input_nodes[0]
-            # Convert input to spike train
-            if isinstance(input_data, np.ndarray):
+            # Convert input to spike train  
+            if NUMPY_AVAILABLE and hasattr(input_data, 'shape'):
+                spike_train = self._encode_to_spikes(input_data, time_steps)
+                state["spike_trains"][input_id] = spike_train
+            elif isinstance(input_data, (list, tuple)):
                 spike_train = self._encode_to_spikes(input_data, time_steps)
                 state["spike_trains"][input_id] = spike_train
                 
@@ -104,7 +169,7 @@ class SimulationExecutor:
             state["spike_trains"][node_id][timestep] = output_spikes
             state["membrane_potentials"][node_id] = membrane_potential
             
-    def _get_input_spikes(self, state: Dict[str, Any], node_id: str, timestep: int) -> np.ndarray:
+    def _get_input_spikes(self, state: Dict[str, Any], node_id: str, timestep: int) -> Any:
         """Get input spikes for a node."""
         predecessors = self.graph.get_predecessors(node_id)
         
@@ -122,7 +187,7 @@ class SimulationExecutor:
                 
         return total_input if total_input is not None else np.array([0.0])
         
-    def _simulate_node(self, node, input_spikes: np.ndarray, membrane_potential: np.ndarray) -> tuple:
+    def _simulate_node(self, node, input_spikes: Any, membrane_potential: Any) -> tuple:
         """Simulate individual node."""
         if node.node_type == NodeType.SPIKE_NEURON:
             return self._simulate_neuron(node, input_spikes, membrane_potential)
@@ -136,7 +201,7 @@ class SimulationExecutor:
             # Pass through for unsupported operations
             return input_spikes, membrane_potential
             
-    def _simulate_neuron(self, node, input_spikes: np.ndarray, membrane_potential: np.ndarray) -> tuple:
+    def _simulate_neuron(self, node, input_spikes: Any, membrane_potential: Any) -> tuple:
         """Simulate spiking neuron."""
         # LIF neuron model parameters
         tau_mem = node.get_parameter("tau_mem", 10.0)
@@ -161,7 +226,7 @@ class SimulationExecutor:
             
         return output_spikes, membrane_potential
         
-    def _simulate_linear(self, node, input_spikes: np.ndarray, membrane_potential: np.ndarray) -> tuple:
+    def _simulate_linear(self, node, input_spikes: Any, membrane_potential: Any) -> tuple:
         """Simulate linear layer with random weights."""
         in_features = node.get_parameter("in_features", input_spikes.size)
         out_features = node.get_parameter("out_features", input_spikes.size)
@@ -182,7 +247,7 @@ class SimulationExecutor:
             
         return output, membrane_potential
         
-    def _simulate_convolution(self, node, input_spikes: np.ndarray, membrane_potential: np.ndarray) -> tuple:
+    def _simulate_convolution(self, node, input_spikes: Any, membrane_potential: Any) -> tuple:
         """Simulate convolution (simplified)."""
         kernel_size = node.get_parameter("kernel_size", 3)
         stride = node.get_parameter("stride", 1)
@@ -204,7 +269,7 @@ class SimulationExecutor:
             
         return output, membrane_potential
         
-    def _simulate_temporal_pooling(self, node, input_spikes: np.ndarray, membrane_potential: np.ndarray) -> tuple:
+    def _simulate_temporal_pooling(self, node, input_spikes: Any, membrane_potential: Any) -> tuple:
         """Simulate temporal pooling."""
         method = node.get_parameter("method", "sum")
         
@@ -223,7 +288,7 @@ class SimulationExecutor:
         
         return output, membrane_potential
         
-    def _encode_to_spikes(self, data: np.ndarray, time_steps: int) -> np.ndarray:
+    def _encode_to_spikes(self, data: Any, time_steps: int) -> Any:
         """Encode continuous data to spike trains using rate coding."""
         # Normalize data to [0, 1]
         data_normalized = np.clip(data, 0, 1)

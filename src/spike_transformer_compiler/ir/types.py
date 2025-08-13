@@ -2,7 +2,20 @@
 
 from typing import Tuple, Optional
 from enum import Enum
-import numpy as np
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError:
+    NUMPY_AVAILABLE = False
+    
+    # Mock numpy for basic functionality
+    class np:
+        @staticmethod
+        def prod(shape):
+            result = 1
+            for dim in shape:
+                result *= dim
+            return result
 
 
 class SpikeType(Enum):
