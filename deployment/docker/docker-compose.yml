@@ -1,0 +1,186 @@
+# Docker Compose for Spike Transformer Compiler Development and Testing
+version: '3.8'
+
+services:
+  # Main application service
+  spike-compiler:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile
+      target: development
+    container_name: spike-transformer-compiler
+    ports:
+      - "8080:8080"  # Main API
+      - "9090:9090"  # Metrics
+    environment:
+      - ENVIRONMENT=development
+      - LOG_LEVEL=DEBUG
+      - METRICS_ENABLED=true
+      - PYTHONPATH=/app/src
+    volumes:
+      - ../../src:/app/src:ro
+      - ../../tests:/app/tests:ro
+      - ../../examples:/app/examples:ro
+      - ./logs:/app/logs
+      - ./data:/app/data
+    networks:
+      - spike-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # Quality monitoring service
+  quality-monitor:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile
+      target: development
+    container_name: spike-quality-monitor
+    ports:
+      - "8081:8080"
+    environment:
+      - ENVIRONMENT=development
+      - SERVICE_NAME=quality-monitor
+      - MONITORING_INTERVAL=30
+    command: ["python", "-m", "spike_transformer_compiler.quality_monitoring"]
+    volumes:
+      - ../../src:/app/src:ro
+      - ./logs:/app/logs
+      - ./monitoring-data:/app/data
+    networks:
+      - spike-network
+    depends_on:
+      - spike-compiler
+    restart: unless-stopped
+
+  # Performance benchmarking service
+  performance-benchmarks:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile
+      target: development
+    container_name: spike-performance-benchmarks
+    environment:
+      - ENVIRONMENT=development
+      - BENCHMARK_MODE=continuous
+    command: ["python", "/app/benchmarks/performance_benchmarks.py"]
+    volumes:
+      - ../../src:/app/src:ro
+      - ../../benchmarks:/app/benchmarks:ro
+      - ./benchmark-results:/app/results
+    networks:
+      - spike-network
+    depends_on:
+      - spike-compiler
+    profiles:
+      - benchmarks
+
+  # Security scanner service
+  security-scanner:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile
+      target: development
+    container_name: spike-security-scanner
+    environment:
+      - ENVIRONMENT=development
+      - SCAN_INTERVAL=3600  # 1 hour
+    command: ["python", "-m", "spike_transformer_compiler.security_scanner"]
+    volumes:
+      - ../../src:/app/src:ro
+      - ./security-reports:/app/reports
+    networks:
+      - spike-network
+    profiles:
+      - security
+
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: spike-prometheus
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - spike-network
+    profiles:
+      - monitoring
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: spike-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      - spike-network
+    depends_on:
+      - prometheus
+    profiles:
+      - monitoring
+
+  # Redis for caching (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: spike-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - spike-network
+    profiles:
+      - caching
+
+  # Test runner service
+  test-runner:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile
+      target: development
+    container_name: spike-test-runner
+    environment:
+      - ENVIRONMENT=test
+      - PYTHONPATH=/app/src
+    command: ["python", "-m", "pytest", "/app/tests", "-v", "--cov=/app/src"]
+    volumes:
+      - ../../src:/app/src:ro
+      - ../../tests:/app/tests:ro
+      - ./test-results:/app/test-results
+    networks:
+      - spike-network
+    profiles:
+      - testing
+
+networks:
+  spike-network:
+    driver: bridge
+    name: spike-transformer-network
+
+volumes:
+  prometheus-data:
+    name: spike-prometheus-data
+  grafana-data:
+    name: spike-grafana-data
+  redis-data:
+    name: spike-redis-data
