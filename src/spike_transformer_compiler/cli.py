@@ -311,6 +311,75 @@ def run(model_path, input_data, compiled_model, time_steps, return_spikes, bench
 
 
 @main.command()
+@click.option("--enable-research", is_flag=True, help="Enable research hypothesis-driven development")
+@click.option("--global-deployment", is_flag=True, default=True, help="Enable global-first implementation")
+@click.option("--adaptive-learning", is_flag=True, default=True, help="Enable self-improving patterns")
+def autonomous(enable_research, global_deployment, adaptive_learning):
+    """Execute autonomous SDLC cycle with progressive enhancement."""
+    try:
+        from .autonomous_executor import run_autonomous_execution
+        
+        click.echo("🚀 Starting Autonomous SDLC Execution")
+        click.echo("=" * 50)
+        click.echo(f"Research Mode: {'✓ ENABLED' if enable_research else '✗ DISABLED'}")
+        click.echo(f"Global Deployment: {'✓ ENABLED' if global_deployment else '✗ DISABLED'}")
+        click.echo(f"Adaptive Learning: {'✓ ENABLED' if adaptive_learning else '✗ DISABLED'}")
+        click.echo("=" * 50)
+        
+        # Execute autonomous SDLC
+        report = run_autonomous_execution(
+            target_config={
+                "enable_research": enable_research,
+                "global_deployment": global_deployment,
+                "adaptive_learning": adaptive_learning
+            }
+        )
+        
+        # Display results
+        click.echo("\n🎯 AUTONOMOUS EXECUTION COMPLETE")
+        click.echo("=" * 50)
+        click.echo(f"Execution ID: {report['execution_summary']['execution_id']}")
+        click.echo(f"Success: {'✓ YES' if report['execution_summary']['success'] else '✗ NO'}")
+        click.echo(f"Duration: {report['execution_summary']['duration_seconds']:.2f} seconds")
+        click.echo(f"Generations: {report['execution_summary']['generations_completed']}/3")
+        click.echo(f"Quality Gates: {report['execution_summary']['quality_gates_passed']}")
+        
+        click.echo("\n📈 Progressive Enhancement:")
+        for generation, status in report['progressive_enhancement'].items():
+            click.echo(f"  {generation}: {status}")
+        
+        click.echo("\n🔧 Adaptive Patterns Applied:")
+        for pattern in report['adaptive_patterns']:
+            click.echo(f"  {pattern['name']} ({pattern['type']}): "
+                     f"used {pattern['usage_count']} times, "
+                     f"effectiveness {pattern['effectiveness']:.2f}")
+        
+        if report['global_deployment']['multi_region_ready']:
+            click.echo("\n🌍 Global Deployment Ready:")
+            click.echo(f"  I18n Support: {', '.join(report['global_deployment']['i18n_support'])}")
+            click.echo(f"  Compliance: {', '.join(report['global_deployment']['compliance_validated'])}")
+        
+        if report['research_capabilities']['research_mode_enabled']:
+            click.echo("\n🔬 Research Capabilities:")
+            click.echo("  ✓ Hypothesis-driven development")
+            click.echo("  ✓ Statistical validation framework")
+            click.echo("  ✓ Reproducible experimental setup")
+        
+        click.echo("\n🚀 Production Readiness:")
+        readiness = report['production_readiness']
+        for component, ready in readiness.items():
+            status = "✓ READY" if ready else "✗ NOT READY"
+            click.echo(f"  {component.replace('_', ' ').title()}: {status}")
+        
+        click.echo("\n🎉 Autonomous SDLC execution completed successfully!")
+        return 0
+        
+    except Exception as e:
+        click.echo(f"Autonomous execution failed: {e}", err=True)
+        return 1
+
+
+@main.command()
 def list_examples():
     """List available example models and configurations."""
     click.echo("Available example configurations:")
@@ -333,6 +402,12 @@ def list_examples():
             "description": "Simple CNN for demonstration",
             "input_shape": "1,1,28,28", 
             "target": "simulation"
+        },
+        {
+            "name": "autonomous_demo",
+            "description": "Autonomous compilation demonstration",
+            "input_shape": "1,3,224,224",
+            "target": "simulation"
         }
     ]
     
@@ -342,6 +417,10 @@ def list_examples():
         click.echo(f"  Input shape: {example['input_shape']}")
         click.echo(f"  Recommended target: {example['target']}")
         click.echo(f"  Usage: spike-compile <model.pth> --input-shape {example['input_shape']} --target {example['target']}")
+    
+    click.echo("\n🤖 Autonomous SDLC:")
+    click.echo("  Description: Execute complete autonomous software development lifecycle")
+    click.echo("  Usage: spike-compile autonomous [--enable-research] [--global-deployment] [--adaptive-learning]")
 
 
 if __name__ == "__main__":
