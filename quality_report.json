@@ -1,0 +1,48 @@
+{
+  "timestamp": 1755464149.754272,
+  "overall_status": "passed",
+  "summary": {
+    "quality_score": 75.0,
+    "total_execution_time": 1.7087218761444092,
+    "gate_status_distribution": {
+      "skipped": 1,
+      "passed": 1
+    },
+    "key_metrics": {
+      "security_tests_total_issues": 1414,
+      "security_tests_critical_issues": 0,
+      "security_tests_high_issues": 0
+    }
+  },
+  "gate_results": [
+    {
+      "gate_name": "unit_tests",
+      "status": "skipped",
+      "execution_time": 0,
+      "metrics": {},
+      "warnings": [],
+      "error_message": "pytest not available"
+    },
+    {
+      "gate_name": "security_tests",
+      "status": "passed",
+      "execution_time": 1.7087218761444092,
+      "metrics": {
+        "total_issues": 1414,
+        "critical_issues": 0,
+        "high_issues": 0
+      },
+      "warnings": [
+        "MEDIUM: Potentially dangerous import/usage: subprocess",
+        "MEDIUM: Potentially dangerous import/usage: exec",
+        "MEDIUM: Potentially dangerous import/usage: compile",
+        "MEDIUM: Potentially dangerous import/usage: subprocess",
+        "MEDIUM: Potentially dangerous import/usage: exec"
+      ],
+      "error_message": null
+    }
+  ],
+  "recommendations": [
+    "All critical quality gates passed - ready for deployment consideration"
+  ]
+}
