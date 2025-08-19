@@ -226,6 +226,18 @@ class CompilerLogger:
         for resource, value in resources.items():
             self.logger.info(f"  {resource}: {value}")
     
+    def log_performance_metrics(self, perf_stats: dict):
+        """Log performance metrics."""
+        self.logger.info("Performance metrics:")
+        for metric, value in perf_stats.items():
+            self.logger.info(f"  {metric}: {value}")
+    
+    def log_resource_summary(self, resource_stats: dict):
+        """Log resource summary."""
+        self.logger.info("Resource summary:")
+        for resource, value in resource_stats.items():
+            self.logger.info(f"  {resource}: {value}")
+    
     def log_optimization_results(self, before: dict, after: dict):
         """Log optimization pass results."""
         self.logger.info("Optimization results:")
