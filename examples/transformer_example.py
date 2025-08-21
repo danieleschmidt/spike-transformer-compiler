@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Transformer model example for Spike-Transformer-Compiler."""
 
+import sys
+sys.path.append('src')
+
 import torch
 import torch.nn as nn
 from spike_transformer_compiler import SpikeCompiler
