@@ -142,6 +142,46 @@ class CircuitBreaker:
             'failures_in_period': len(self.failures_in_period),
             'last_failure_time': self.last_failure_time
         }
+    
+    def __enter__(self):
+        """Enter context manager - check circuit state."""
+        with self._lock:
+            current_time = time.time()
+            
+            # Clean old failures from monitoring period
+            self._cleanup_old_failures(current_time)
+            
+            # Check if circuit should be opened
+            if self._should_trip(current_time):
+                self.state = CircuitState.OPEN
+                self.last_failure_time = current_time
+            
+            # Handle different states
+            if self.state == CircuitState.OPEN:
+                if current_time - self.last_failure_time >= self.config.timeout_duration:
+                    self.state = CircuitState.HALF_OPEN
+                    self.success_count = 0
+                    compiler_logger.logger.info(f"Circuit breaker {self.name} moving to HALF_OPEN")
+                else:
+                    raise CircuitBreakerOpenError(
+                        f"Circuit breaker {self.name} is OPEN. "
+                        f"Try again in {self.config.timeout_duration - (current_time - self.last_failure_time):.1f}s"
+                    )
+        
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit context manager - record success or failure."""
+        current_time = time.time()
+        
+        if exc_type is None:
+            # Success
+            self._record_success()
+        else:
+            # Failure
+            self._record_failure(current_time)
+        
+        return False  # Don't suppress exceptions
 
 
 class CircuitBreakerOpenError(Exception):
@@ -311,26 +351,29 @@ class GracefulDegradationFallback(FallbackStrategy):
         """Execute with reduced optimization level."""
         compiler_logger.logger.info("Falling back to reduced optimization compilation")
         
-        # Reduce optimization level
+        # Create a simple degraded compilation
         kwargs = kwargs.copy()
-        original_level = kwargs.get('optimization_level', 2)
-        kwargs['optimization_level'] = max(0, original_level - 2)
         kwargs['degraded_mode'] = True
         
         # Disable advanced features
         kwargs['profile_energy'] = False
-        kwargs['enable_profiling'] = False
+        kwargs['secure_mode'] = False
+        kwargs['enable_resilience'] = False
         
         # Re-attempt compilation with reduced parameters
         from .compiler import SpikeCompiler
         
         compiler = SpikeCompiler(
             target=kwargs.get('target', 'simulation'),
-            optimization_level=kwargs['optimization_level'],
+            optimization_level=0,  # Minimal optimization
             verbose=False
         )
         
-        return compiler.compile(*args, **kwargs)
+        # Extract model and input_shape from args
+        model = args[0] if len(args) > 0 else kwargs.get('model')
+        input_shape = args[1] if len(args) > 1 else kwargs.get('input_shape')
+        
+        return compiler.compile(model, input_shape, **kwargs)
 
 
 class ResilientCompilationManager:

@@ -292,6 +292,10 @@ class GraphSanitizer:
     
     def validate_node_parameters(self, node) -> None:
         """Validate node parameters for security issues."""
+        # Check if node has parameters attribute
+        if not hasattr(node, 'parameters'):
+            return  # Skip validation for nodes without parameters
+        
         # Check for suspicious parameter values
         for param, value in node.parameters.items():
             if isinstance(value, str):
@@ -307,6 +311,56 @@ class GraphSanitizer:
                 # Check for extremely large values that could cause memory issues
                 if abs(value) > 1e10:
                     warnings.warn(f"Large parameter value in node {node.id}: {param}={value}")
+    
+    def check_node_security_constraints(self, node) -> None:
+        """Check node-specific security constraints."""
+        # This is a simple security check
+        if hasattr(node, 'operation'):
+            operation = str(node.operation).lower()
+            dangerous_ops = ['system', 'exec', 'file_read', 'network']
+            if any(danger in operation for danger in dangerous_ops):
+                raise ValidationError(
+                    f"Dangerous operation detected: {node.operation}",
+                    error_code="DANGEROUS_OPERATION"
+                )
+    
+    def validate_graph_complexity(self, graph) -> None:
+        """Validate graph computational complexity."""
+        # Check if graph has resource analysis capability
+        if hasattr(graph, 'analyze_resources'):
+            resources = graph.analyze_resources()
+            total_ops = resources.get('total_computation_ops', 0)
+            if total_ops > 1e12:  # 1 trillion operations seems excessive
+                raise ValidationError(
+                    f"Graph requires {total_ops:.0e} operations",
+                    error_code="EXCESSIVE_COMPUTATION"
+                )
+        else:
+            # Basic complexity check based on node count
+            if hasattr(graph, 'nodes') and len(graph.nodes) > 10000:
+                compiler_logger.logger.warning(f"Large graph detected: {len(graph.nodes)} nodes")
+    
+    def validate_memory_requirements(self, graph) -> None:
+        """Validate graph memory requirements."""
+        # Check if graph has resource analysis capability
+        if hasattr(graph, 'analyze_resources'):
+            resources = graph.analyze_resources()
+            memory_bytes = resources.get('total_memory_bytes', 0)
+            memory_mb = memory_bytes / (1024 * 1024)
+            
+            max_memory_mb = getattr(self.config, 'max_memory_usage_gb', 8) * 1024
+            if memory_mb > max_memory_mb:
+                raise ValidationError(
+                    f"Graph requires {memory_mb:.1f} MB, exceeds limit",
+                    error_code="EXCESSIVE_MEMORY"
+                )
+        else:
+            # Basic memory check based on node count and estimated per-node memory
+            if hasattr(graph, 'nodes'):
+                estimated_memory_mb = len(graph.nodes) * 0.1  # 0.1 MB per node estimate
+                max_memory_mb = getattr(self.config, 'max_memory_usage_gb', 8) * 1024
+                if estimated_memory_mb > max_memory_mb:
+                    compiler_logger.logger.warning(f"Estimated memory usage: {estimated_memory_mb:.1f} MB")
 
 
 class SecureCompilationEnvironment:
@@ -496,10 +550,11 @@ class SecurityValidator:
     
     def log_security_incident(self, incident_type: str, details: str) -> None:
         """Log security incident."""
+        from datetime import datetime
         incident = {
             'type': incident_type,
             'details': details,
-            'timestamp': compiler_logger.get_timestamp()
+            'timestamp': datetime.now().isoformat()
         }
         self.security_incidents.append(incident)
         compiler_logger.logger.error(f"Security incident: {incident_type} - {details}")
