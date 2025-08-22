@@ -362,7 +362,7 @@ class SimulationBackend:
     def __init__(self, resource_allocator=None):
         self.resource_allocator = resource_allocator
         
-    def compile_graph(self, graph: SpikeGraph, profile_energy: bool = False, debug: bool = False) -> CompiledModel:
+    def compile_graph(self, graph: SpikeGraph, profile_energy: bool = False, debug: bool = False, **kwargs) -> CompiledModel:
         """Compile graph for simulation."""
         # Create executor
         executor = SimulationExecutor(graph, debug=debug)
