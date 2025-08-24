@@ -1,0 +1,166 @@
+{
+  "test_summary": {
+    "total_tests": 11,
+    "successful_tests": 8,
+    "failed_tests": 3,
+    "success_rate": 0.7272727272727273,
+    "total_duration": 0.0501406192779541,
+    "timestamp": 1756008441.0576036
+  },
+  "test_results": [
+    {
+      "name": "basic_compilation",
+      "success": true,
+      "duration": 0.005004167556762695,
+      "error": null,
+      "warnings": [],
+      "metrics": {
+        "energy": 0.0,
+        "utilization": 1.0
+      }
+    },
+    {
+      "name": "error_handling",
+      "success": false,
+      "duration": 0.00013303756713867188,
+      "error": "Unsupported target 'invalid_target'. Available targets: ['simulation']",
+      "warnings": [],
+      "metrics": {}
+    },
+    {
+      "name": "edge_cases",
+      "success": true,
+      "duration": 0.00804281234741211,
+      "error": null,
+      "warnings": [],
+      "metrics": {
+        "passed_cases": [
+          "small_model",
+          "large_model",
+          "single_timestep"
+        ],
+        "total_cases": 3
+      }
+    },
+    {
+      "name": "performance_bounds",
+      "success": true,
+      "duration": 0.002961397171020508,
+      "error": null,
+      "warnings": [],
+      "metrics": {
+        "compilation_time": 0.0028672218322753906,
+        "max_allowed": 10.0,
+        "performance_ratio": 0.00028672218322753904
+      }
+    },
+    {
+      "name": "memory_safety",
+      "success": true,
+      "duration": 0.007807493209838867,
+      "error": null,
+      "warnings": [],
+      "metrics": {
+        "initial_objects": 2,
+        "final_objects": 4,
+        "object_growth": 2
+      }
+    },
+    {
+      "name": "concurrent_compilation",
+      "success": true,
+      "duration": 0.004945516586303711,
+      "error": null,
+      "warnings": [],
+      "metrics": {
+        "compilations": 2,
+        "unique_results": 1,
+        "consistent": true
+      }
+    },
+    {
+      "name": "backend_validation",
+      "success": true,
+      "duration": 0.00249481201171875,
+      "error": null,
+      "warnings": [],
+      "metrics": {
+        "available_backends": [
+          "simulation"
+        ],
+        "tested_backends": [
+          "simulation"
+        ],
+        "success_rate": 1.0
+      }
+    },
+    {
+      "name": "optimization_levels",
+      "success": true,
+      "duration": 0.009413957595825195,
+      "error": null,
+      "warnings": [],
+      "metrics": {
+        "tested_levels": 4,
+        "successful_levels": 4,
+        "results": [
+          {
+            "level": 0,
+            "utilization": 1.0,
+            "success": true
+          },
+          {
+            "level": 1,
+            "utilization": 1.0,
+            "success": true
+          },
+          {
+            "level": 2,
+            "utilization": 1.0,
+            "success": true
+          },
+          {
+            "level": 3,
+            "utilization": 1.0,
+            "success": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "malformed_inputs",
+      "success": false,
+      "duration": 0.005625724792480469,
+      "error": null,
+      "warnings": [],
+      "metrics": {
+        "total_cases": 4,
+        "handled_cases": 0,
+        "handle_rate": 0.0
+      }
+    },
+    {
+      "name": "resource_limits",
+      "success": false,
+      "duration": 8.20159912109375e-05,
+      "error": "No module named 'spike_transformer_compiler'",
+      "warnings": [],
+      "metrics": {}
+    },
+    {
+      "name": "graceful_degradation",
+      "success": true,
+      "duration": 0.003513813018798828,
+      "error": null,
+      "warnings": [],
+      "metrics": {
+        "debug_mode_success": true
+      }
+    }
+  ],
+  "robustness_score": 7.265625,
+  "recommendations": [
+    "Critical failures detected. Address basic compilation and error handling issues first.",
+    "Edge case handling needs improvement. Strengthen input validation."
+  ]
+}
