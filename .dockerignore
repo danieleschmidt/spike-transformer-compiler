@@ -1,5 +1,0 @@
-.git
-__pycache__
-logs
-.pytest_cache
-.env
